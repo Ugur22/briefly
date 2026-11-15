@@ -1,0 +1,22 @@
+{
+  "name": "briefly",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.4",
+  "workspaces": ["apps/*", "libs/*"],
+  "scripts": {
+    "check": "nx run-many -t lint typecheck test build --output-style=stream-without-prefixes",
+    "dev:api": "nx run api:dev",
+    "dev:web": "nx run web:dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "nx": "^24.0.6",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}
