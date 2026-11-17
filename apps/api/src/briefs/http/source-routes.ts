@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
 import { briefPermissions } from '../domain/permissions';
+import { briefActions } from '../domain/workflow';
 import { sniffSourceFile, sourcePath, titleFromFileName } from '../domain/source-file';
 import type { BriefsRepo } from '../infra/briefs-repo';
 import type { TextExtractor } from '../infra/extract-text';
@@ -116,7 +117,7 @@ export const sourceRoutes: FastifyPluginAsyncZod<SourceRoutesOptions> = async (a
       try {
         const brief = await briefsFor(token).create(ws.id, input.data, { id, source: { name: fileName, mime: sniffed.mime, size: upload.bytes.length } });
         req.log.info({ size: upload.bytes.length, mime: sniffed.mime, pages: extracted.pages, ms: extracted.ms }, 'brief uploaded');
-        return reply.code(201).send({ brief, permissions: { edit: can.edit, delete: can.delete } });
+        return reply.code(201).send({ brief, permissions: briefActions(ws.role, brief.status) });
       } catch (err) {
         const removed = await sources.remove(path).catch((cleanupErr: unknown) => {
           req.log.warn({ err: cleanupErr }, 'orphaned upload not removed');

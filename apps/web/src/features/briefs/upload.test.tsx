@@ -18,8 +18,12 @@ const brief = {
   body: 'Five thousand test rides.',
   createdAt: '2026-11-18T09:00:00.000Z',
   source: { name: 'Spring launch.pdf', mime: 'application/pdf', size: 250_000 },
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
-const permissions = { edit: true, delete: false };
+const permissions = { edit: true, delete: false, submit: true, decide: false };
 
 function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

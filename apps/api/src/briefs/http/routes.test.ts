@@ -1,3 +1,4 @@
+import { DbError } from '../../platform/db-error';
 import { BriefList, BriefResponse, BriefSummary, type Brief, type Workspace, type WorkspaceRole } from '@briefly/contracts';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../../app';
@@ -19,6 +20,10 @@ const brief: Brief = {
   updatedAt: '2026-11-18T09:00:00.000Z',
   createdAt: '2026-11-18T09:00:00.000Z',
   source: null,
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
 
 // The caller is a member of workspace A only, with whatever role the test sets.
@@ -30,6 +35,8 @@ const briefs = {
   create: vi.fn(async () => brief),
   update: vi.fn(async () => updateResult),
   remove: vi.fn(async (ws: string, id: string) => ws === wsA && id === briefId),
+  submit: vi.fn<BriefsRepo['submit']>(async () => ({ kind: 'ok', brief: { ...brief, status: 'in_review' } })),
+  decide: vi.fn<BriefsRepo['decide']>(async () => ({ kind: 'ok', brief: { ...brief, status: 'approved' } })),
 } satisfies BriefsRepo;
 const sources = { put: vi.fn(async () => 'ok' as const), get: vi.fn(async () => null), remove: vi.fn(async () => true) };
 const identity = (): IdentityRepo => ({
@@ -76,7 +83,7 @@ describe('briefs routes', () => {
     const res = await call('POST', `/api/workspaces/${wsA}/briefs`, { title: '  Spring launch ', body: 'x' });
 
     expect(res.statusCode).toBe(201);
-    expect(BriefResponse.parse(res.json()).permissions).toEqual({ edit: true, delete: false });
+    expect(BriefResponse.parse(res.json()).permissions).toEqual({ edit: true, delete: false, submit: true, decide: false });
     expect(briefs.create).toHaveBeenLastCalledWith(wsA, { title: 'Spring launch', body: 'x' });
   });
 
@@ -125,6 +132,69 @@ describe('briefs routes', () => {
     sources.remove.mockRejectedValueOnce(new Error('storage down'));
 
     expect((await call('DELETE', `/api/workspaces/${wsA}/briefs/${briefId}`)).statusCode).toBe(204);
+  });
+
+  it('submits a brief for review', async () => {
+    role = 'editor';
+
+    const res = await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/submit`, { version: 1 });
+
+    expect(res.statusCode).toBe(200);
+    expect(BriefResponse.parse(res.json()).brief.status).toBe('in_review');
+    expect(briefs.submit).toHaveBeenLastCalledWith(wsA, briefId, 1);
+  });
+
+  it.each([
+    ['BRF03', 409, 'no_current_review'],
+    ['BRF01', 409, 'locked'],
+    ['BRF04', 409, 'invalid_transition'],
+  ])('passes the workflow refusal %s on as %i %s', async (code, status, error) => {
+    role = 'editor';
+    briefs.submit.mockRejectedValueOnce(new DbError('briefs.submit', code));
+
+    const res = await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/submit`, { version: 1 });
+
+    expect(res.statusCode).toBe(status);
+    expect(res.json()).toEqual({ error });
+  });
+
+  it('lets an approver decide', async () => {
+    role = 'approver';
+
+    const res = await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/decision`, { decision: 'approve' });
+
+    expect(BriefResponse.parse(res.json()).brief.status).toBe('approved');
+  });
+
+  it('refuses a decision from an editor before asking the database', async () => {
+    role = 'editor';
+    briefs.decide.mockClear();
+
+    expect((await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/decision`, { decision: 'approve' })).statusCode).toBe(403);
+    expect(briefs.decide).not.toHaveBeenCalled();
+  });
+
+  it('answers 403 self_approval when the database refuses the submitter', async () => {
+    role = 'admin';
+    briefs.decide.mockRejectedValueOnce(new DbError('briefs.decide', 'BRF02'));
+
+    const res = await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/decision`, { decision: 'approve' });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toEqual({ error: 'self_approval' });
+  });
+
+  it('needs a comment to send a brief back', async () => {
+    role = 'approver';
+
+    expect((await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/decision`, { decision: 'request_changes', comment: '  ' })).statusCode).toBe(400);
+  });
+
+  it('answers 409 not_in_review when the brief was not waiting for a decision', async () => {
+    role = 'approver';
+    briefs.decide.mockResolvedValueOnce({ kind: 'conflict' });
+
+    expect((await call('POST', `/api/workspaces/${wsA}/briefs/${briefId}/decision`, { decision: 'approve' })).json()).toEqual({ error: 'not_in_review' });
   });
 
   it('never echoes brief text back in a validation error', async () => {

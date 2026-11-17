@@ -35,6 +35,10 @@ const row = {
   source_name: null,
   source_mime: null,
   source_size: null,
+  submitted_by: null,
+  submitted_at: null,
+  decided_at: null,
+  decision_comment: null,
 };
 
 describe('briefsRepo', () => {
@@ -93,6 +97,30 @@ describe('briefsRepo', () => {
     ]);
 
     await expect(briefsRepo(db).update(wsA, id, { title: 't', body: 'b', version: 2 })).resolves.toEqual({ kind });
+  });
+
+  it('submits by sending only the status, at the version that was reviewed', async () => {
+    const { db, calls } = fakeDb([{ data: [{ ...row, status: 'in_review' }], error: null }]);
+
+    expect(await briefsRepo(db).submit(wsA, id, 2)).toMatchObject({ kind: 'ok', brief: { status: 'in_review' } });
+    expect(calls).toContainEqual(['update', { status: 'in_review' }]);
+    expect(calls).toContainEqual(['eq', 'version', 2]);
+  });
+
+  it('decides only on a brief that is in review', async () => {
+    const { db, calls } = fakeDb([{ data: [{ ...row, status: 'changes_requested', decision_comment: 'Add dates' }], error: null }]);
+
+    const result = await briefsRepo(db).decide(wsA, id, { decision: 'request_changes', comment: 'Add dates' });
+
+    expect(result).toMatchObject({ kind: 'ok', brief: { status: 'changes_requested', decisionComment: 'Add dates' } });
+    expect(calls).toContainEqual(['update', { status: 'changes_requested', decision_comment: 'Add dates' }]);
+    expect(calls).toContainEqual(['eq', 'status', 'in_review']);
+  });
+
+  it('passes a workflow refusal from the trigger on with its own code', async () => {
+    const { db } = fakeDb([{ data: null, error: { code: 'BRF03' } }]);
+
+    await expect(briefsRepo(db).submit(wsA, id, 2)).rejects.toMatchObject({ statusCode: 409, message: 'no_current_review' });
   });
 
   it('reports whether a delete removed anything', async () => {

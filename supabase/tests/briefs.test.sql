@@ -38,7 +38,7 @@ select throws_ok($$insert into public.briefs (workspace_id, title, body, created
 select lives_ok($$update public.briefs set title = 'A brief v2' where id = 'a1000000-0000-4000-8000-0000000000a1'$$, 'editor edits an A brief');
 select is((select version from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1'), 2, 'an edit bumps the version');
 select throws_ok($$update public.briefs set workspace_id = 'b0000000-0000-4000-8000-00000000000b' where id = 'a1000000-0000-4000-8000-0000000000a1'$$, '42501', 'permission denied for table briefs', 'editor cannot move a brief to another workspace (column privilege)');
-select throws_ok($$update public.briefs set status = 'draft' where id = 'a1000000-0000-4000-8000-0000000000a1'$$, '42501', 'permission denied for table briefs', 'editor cannot set status (column privilege)');
+select throws_ok($$update public.briefs set status = 'approved' where id = 'a1000000-0000-4000-8000-0000000000a1'$$, 'BRF04', null, 'editor cannot set an arbitrary status (workflow trigger)');
 select throws_ok($$update public.briefs set version = 99 where id = 'a1000000-0000-4000-8000-0000000000a1'$$, '42501', 'permission denied for table briefs', 'editor cannot set version (column privilege)');
 select is_empty($$update public.briefs set title = 'pwned' where id = 'b1000000-0000-4000-8000-0000000000b1' returning id$$, 'editor cannot edit a B brief by id');
 select is_empty($$delete from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1' returning id$$, 'editor cannot delete');
@@ -53,7 +53,7 @@ select set_config('request.jwt.claims', '{"iss":"https://integrator-1689783.okta
 
 select is((select count(*)::int from public.briefs), 3, 'approver reads every A brief');
 select throws_ok($$insert into public.briefs (workspace_id, title, body) values ('a0000000-0000-4000-8000-00000000000a', 'Nope', 'x')$$, '42501', 'new row violates row-level security policy for table "briefs"', 'approver cannot create (RLS)');
-select is_empty($$update public.briefs set title = 'by approver' where id = 'a1000000-0000-4000-8000-0000000000a1' returning id$$, 'approver cannot edit');
+select throws_ok($$update public.briefs set title = 'by approver' where id = 'a1000000-0000-4000-8000-0000000000a1'$$, '42501', 'only editors and admins edit briefs', 'approver cannot edit the text (workflow trigger)');
 select is((select title from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1'), 'A brief v2', 'the refused edit changed nothing');
 select is_empty($$delete from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1' returning id$$, 'approver cannot delete');
 

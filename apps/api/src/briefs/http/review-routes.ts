@@ -4,7 +4,8 @@ import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
 import { generateReview, type ReviewGenerator, type ReviewsRepo } from '../application/generate-review';
 import { briefPermissions } from '../domain/permissions';
-import { isEditableStatus, toBriefReview } from '../domain/review';
+import { toBriefReview } from '../domain/review';
+import { isEditableStatus } from '../domain/workflow';
 import type { BriefsRepo } from '../infra/briefs-repo';
 
 export type ReviewRoutesOptions = {

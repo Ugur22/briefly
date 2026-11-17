@@ -14,6 +14,10 @@ const brief: Brief = {
   updatedAt: '2026-11-18T09:00:00.000Z',
   createdAt: '2026-11-18T09:00:00.000Z',
   source: null,
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
 const modelReview: ModelReview = {
   summary: 'Clear goal, no budget.',
