@@ -13,6 +13,16 @@ const Env = z.object({
   OKTA_CLIENT_ID: z.string().min(1),
   SUPABASE_URL: z.url(),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+  // Optional: without a key the review route answers 503 ai_unavailable, so dev and CI run without one.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  // Which OpenAI model reviews briefs; set it explicitly rather than trusting a default that ages.
+  OPENAI_MODEL: z.string().min(1).optional(),
+  // 'fake' stores a canned review labelled as such: the offline fallback for a demo without a key or model.
+  REVIEW_GENERATOR: z.enum(['claude', 'openai', 'fake']).default('claude'),
+}).refine((env) => env.REVIEW_GENERATOR !== 'openai' || (env.OPENAI_API_KEY && env.OPENAI_MODEL), {
+  message: 'REVIEW_GENERATOR=openai needs OPENAI_API_KEY and OPENAI_MODEL',
+  path: ['REVIEW_GENERATOR'],
 });
 
 export type Config = z.infer<typeof Env>;

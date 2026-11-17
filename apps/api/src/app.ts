@@ -9,6 +9,12 @@ import { briefsRoutes } from './briefs/http/routes';
 import { sourceRoutes } from './briefs/http/source-routes';
 import { createTextExtractor, type TextExtractor } from './briefs/infra/extract-text';
 import { sourceStorage, type SourceStorage } from './briefs/infra/source-storage';
+import type { ReviewGenerator, ReviewsRepo } from './briefs/application/generate-review';
+import { reviewRoutes } from './briefs/http/review-routes';
+import { claudeReviewGenerator, fakeReviewGenerator } from './briefs/infra/claude-review-generator';
+import { openAIReviewGenerator } from './briefs/infra/openai-review-generator';
+import { reviewsRepo } from './briefs/infra/reviews-repo';
+import type { FastifyBaseLogger } from 'fastify';
 import { oktaJwks, registerAuth } from './platform/auth';
 import type { Config } from './platform/config';
 import { userClientFactory } from './platform/supabase';
@@ -21,6 +27,18 @@ function loggerOptions(config: Config) {
   return { level: config.LOG_LEVEL };
 }
 
+// Picks the model adapter from config; null means AI review is unavailable (the route answers 503).
+export function reviewGeneratorFrom(config: Config, log: FastifyBaseLogger): ReviewGenerator | null {
+  switch (config.REVIEW_GENERATOR) {
+    case 'fake':
+      return fakeReviewGenerator;
+    case 'openai':
+      return config.OPENAI_API_KEY && config.OPENAI_MODEL ? openAIReviewGenerator({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_MODEL, log }) : null;
+    case 'claude':
+      return config.ANTHROPIC_API_KEY ? claudeReviewGenerator({ apiKey: config.ANTHROPIC_API_KEY, log }) : null;
+  }
+}
+
 // Seams for tests: a local key set instead of Okta's, and in-memory repos instead of Supabase.
 export type AppDeps = {
   jwks?: JWTVerifyGetKey;
@@ -28,6 +46,9 @@ export type AppDeps = {
   briefsFor?: (accessToken: string) => BriefsRepo;
   sourcesFor?: (accessToken: string) => SourceStorage;
   extract?: TextExtractor;
+  reviewsFor?: (accessToken: string) => ReviewsRepo;
+  // undefined: from config; null: AI unavailable.
+  generate?: ReviewGenerator | null;
 };
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -54,10 +75,13 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
   const repoFor = deps.repoFor ?? ((token: string) => identityRepo(userClient(token)));
   const briefsFor = deps.briefsFor ?? ((token: string) => briefsRepo(userClient(token)));
   const sourcesFor = deps.sourcesFor ?? ((token: string) => sourceStorage(userClient(token)));
+  const reviewsFor = deps.reviewsFor ?? ((token: string) => reviewsRepo(userClient(token)));
+  const generate = deps.generate !== undefined ? deps.generate : reviewGeneratorFrom(config, app.log);
 
   app.register(healthRoutes, { prefix: '/api', version: config.APP_VERSION, commit: config.GIT_SHA });
   app.register(identityRoutes, { prefix: '/api', repoFor });
   app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor });
+  app.register(reviewRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, reviewsFor, generate });
   app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor() });
 
   return app;
