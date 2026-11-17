@@ -1,0 +1,48 @@
+name: weekly
+
+# Report-only: writes one rolling issue, never touches code.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  deps-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+      - run: bun install --frozen-lockfile
+      # Both commands exit non-zero when they find something; that is the report, not a failure.
+      - id: report
+        run: |
+          {
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "## bun audit"
+            echo '```'
+            bun audit 2>&1 || true
+            echo '```'
+            echo
+            echo "## bun outdated"
+            echo '```'
+            bun outdated -r 2>&1 || true
+            echo '```'
+          } > report.md
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Weekly health"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --body-file report.md
+          else
+            gh issue create --title "$title" --body-file report.md
+          fi
