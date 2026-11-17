@@ -6,6 +6,10 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint does not support TS 7 yet; remove once it does.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for everything non-breaking; majors stay separate so each gets its own review.
       minor-and-patch:
