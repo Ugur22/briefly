@@ -22,9 +22,6 @@ jobs:
       - run: bun install --frozen-lockfile
       # Both commands exit non-zero when they find something; that is the report, not a failure.
       - id: report
-        # bun audit colours its output even when piped; the escape codes show up raw in the issue.
-        env:
-          NO_COLOR: "1"
         run: |
           {
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -39,6 +36,8 @@ jobs:
             bun outdated -r 2>&1 || true
             echo '```'
           } > report.md
+          # bun audit colours its output even when piped and ignores NO_COLOR; strip the escape codes.
+          perl -pi -e 's/\e\[[0-9;]*m//g' report.md
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
