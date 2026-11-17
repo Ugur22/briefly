@@ -34,37 +34,11 @@ const generateError = (err: unknown) => {
   return 'Could not generate a review. Try again.';
 };
 
-// How complete the brief is, at a glance: one segment per area, in the order the table below uses.
-function Coverage({ review }: { review: Review }) {
-  const counts = REVIEW_AREAS.reduce((c, a) => ({ ...c, [review.areas[a].status]: c[review.areas[a].status] + 1 }), { present: 0, unclear: 0, missing: 0 });
+function AreaRows({ review, areas }: { review: Review; areas: ReviewArea[] }) {
   return (
-    <figure className="grid gap-2">
-      <div className="grid grid-cols-7 gap-1" role="img" aria-label={`Coverage: ${counts.present} present, ${counts.unclear} unclear, ${counts.missing} missing`}>
-        {REVIEW_AREAS.map((a) => (
-          <span key={a} className={`h-2 rounded-full ${FILL[review.areas[a].status]}`} title={`${AREA_LABELS[a]}: ${STATUS_LABELS[review.areas[a].status]}`} />
-        ))}
-      </div>
-      <figcaption className="meta flex flex-wrap gap-x-4 gap-y-1">
-        {(['present', 'unclear', 'missing'] as const).map((s) => (
-          <span key={s} className="inline-flex items-center gap-2">
-            <span className={`size-2 rounded-full ${FILL[s]}`} aria-hidden />
-            {counts[s]} {STATUS_LABELS[s].toLowerCase()}
-          </span>
-        ))}
-      </figcaption>
-    </figure>
-  );
-}
-
-// Model output is shown as plain text only: React text nodes, never HTML or markdown.
-function ReviewView({ review }: { review: Review }) {
-  return (
-    <div className="grid gap-5">
-      <Coverage review={review} />
-      <p className="text-ink">{review.summary}</p>
       <table className="w-full border-collapse text-left">
         <tbody className="divide-y divide-line border-y border-line">
-          {REVIEW_AREAS.map((area) => (
+          {areas.map((area) => (
             <tr key={area} className="align-top">
               {/* Status sits under the area so the note keeps its width on a phone. The hue is in the dot only:
                   as text, present and unclear fall below 4.5:1 on white. */}
@@ -80,12 +54,34 @@ function ReviewView({ review }: { review: Review }) {
           ))}
         </tbody>
       </table>
+  );
+}
+
+export function ReviewFindings({ review }: { review: Review }) {
+  const missing = REVIEW_AREAS.filter(area => review.areas[area].status === 'missing');
+  const unclear = REVIEW_AREAS.filter(area => review.areas[area].status === 'unclear');
+  const open = [...missing, ...unclear];
+  return (
+    <div className="grid gap-4">
+      <h3 className="text-lg font-semibold">{open.length ? `${missing.length} missing · ${unclear.length} unclear` : 'All areas covered'}</h3>
+      {open.length > 0 && <AreaRows review={review} areas={open} />}
       {review.questions.length > 0 && (
         <div className="grid gap-2">
           <h3 className="font-medium">Questions for the client</h3>
           <ol className="grid list-decimal gap-2 pl-5 text-ink-2 marker:text-muted">{review.questions.map((q, i) => <li key={i}>{q}</li>)}</ol>
         </div>
       )}
+    </div>
+  );
+}
+
+function ReviewView({ review }: { review: Review }) {
+  const covered = REVIEW_AREAS.filter(area => review.areas[area].status === 'present');
+  return (
+    <div className="grid gap-5">
+      <ReviewFindings review={review} />
+      {covered.length > 0 && <details><summary className="cursor-pointer font-medium">Already covered ({covered.length})</summary><AreaRows review={review} areas={covered} /></details>}
+      <p>{review.summary}</p>
       {review.risks.length > 0 && (
         <div className="grid gap-2">
           <h3 className="font-medium">Risks</h3>
@@ -106,18 +102,24 @@ function Provenance({ review }: { review: BriefReview }) {
   );
 }
 
-export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; briefId: string; briefVersion: number }) {
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
-  const query = useQuery({
+export function useBriefReview(wsId: string, briefId: string, enabled = true) {
+  return useQuery({
+    enabled,
     queryKey: queryKeys.review(wsId, briefId),
     queryFn: () => fetchReview(wsId, briefId),
     // A generation started elsewhere (another tab, a teammate): check back until it lands.
     refetchInterval: (q) => (q.state.data?.review?.state === 'pending' ? 3000 : false),
   });
 
+}
+
+export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; briefId: string; briefVersion: number }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
+  const query = useBriefReview(wsId, briefId);
   const generate = useMutation({
+    mutationKey: queryKeys.review(wsId, briefId),
     mutationFn: () => generateReview(wsId, briefId),
     onSuccess: (res) => {
       queryClient.setQueryData(queryKeys.review(wsId, briefId), res);
@@ -146,22 +148,22 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
   const startGenerate = () => (review?.editedAt && !confirmingRegenerate ? setConfirmingRegenerate(true) : generate.mutate());
 
   return (
-    <section aria-labelledby="review-heading" className="card grid gap-4 p-5 sm:p-6">
+    <section aria-labelledby="review-heading" className="grid gap-4 border-t border-line pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="review-heading" className="text-base font-medium">
           AI review
         </h2>
         <div className="flex flex-wrap gap-2">
           {shown && review && !editing && editable && (
-            <button type="button" className="btn" onClick={() => setEditing(true)}>
+            <button type="button" className="btn btn-tonal" onClick={() => setEditing(true)}>
               <Pencil size={16} strokeWidth={1.5} aria-hidden />
               Edit review
             </button>
           )}
           {!generate.isPending && !runningElsewhere && permissions.generate && !editing && !confirmingRegenerate && (
-            <button type="button" className={review ? 'btn' : 'btn btn-primary'} onClick={startGenerate}>
+            <button type="button" className={review?.state === 'succeeded' && !review.outdated ? 'btn btn-ghost' : 'btn btn-primary'} onClick={startGenerate}>
               <RefreshCw size={16} strokeWidth={1.5} aria-hidden />
-              {review ? 'Regenerate review' : 'Generate AI review'}
+              {review?.outdated ? 'Update AI review' : review ? 'Regenerate review' : 'Generate AI review'}
             </button>
           )}
         </div>
@@ -210,8 +212,8 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
 
       {shown && review && !editing && (
         <>
-          <Provenance review={review} />
           <ReviewView review={shown} />
+          <Provenance review={review} />
         </>
       )}
       {shown && editing && (

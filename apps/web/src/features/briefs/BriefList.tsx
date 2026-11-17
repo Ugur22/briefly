@@ -14,7 +14,7 @@ export function BriefList({ wsId }: { wsId: string }) {
   if (isError) return <p role="alert" className="alert">Could not load briefs.</p>;
 
   return (
-    <section aria-labelledby="briefs-heading" className="grid gap-4">
+    <section aria-labelledby="briefs-heading" className="grid max-w-4xl gap-4">
       <div className="flex items-center justify-between gap-4">
         <h2 id="briefs-heading" className="text-base font-medium">
           Briefs
@@ -30,14 +30,14 @@ export function BriefList({ wsId }: { wsId: string }) {
       {data.briefs.length === 0 ? (
         <p className="card px-5 py-12 text-center text-ink-2">No briefs yet.</p>
       ) : (
-        <ul className="card divide-y divide-line">
+        <ul className="divide-y divide-line border-y border-line">
           {data.briefs.map((b) => (
-            <li key={b.id} className="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_170px_220px]">
-              <Link to={`/w/${wsId}/briefs/${b.id}`} className="truncate font-medium text-ink">
+            <li key={b.id} className="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-2 py-3 hover:bg-accent-soft md:grid-cols-[minmax(0,1fr)_8rem_auto]">
+              <Link to={`/w/${wsId}/briefs/${b.id}`} className="truncate font-doc text-lg text-accent-hover hover:underline">
                 {b.title}
               </Link>
               <Status status={b.status} />
-              <span className="meta hidden justify-self-end whitespace-nowrap sm:block">updated {updated.format(new Date(b.updatedAt))}</span>
+              <span className="meta hidden justify-self-end whitespace-nowrap md:block">updated {updated.format(new Date(b.updatedAt))}</span>
             </li>
           ))}
         </ul>

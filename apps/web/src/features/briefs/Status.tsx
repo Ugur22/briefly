@@ -7,7 +7,7 @@ export const STATUS_TEXT: Record<BriefStatus, string> = {
   changes_requested: 'Changes requested',
 };
 
-// The dot carries the meaning: grey draft, blue-pencil in review, sage approved, amber sent back.
+// The dot carries the meaning: grey draft, teal in review, sage approved, amber sent back.
 const DOT: Record<BriefStatus, string> = {
   draft: 'bg-muted',
   in_review: 'bg-accent',

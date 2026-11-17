@@ -27,11 +27,11 @@ const ERRORS: Record<string, string> = {
 };
 const message = (err: unknown) => (err instanceof ApiError && err.code && ERRORS[err.code]) || 'That did not work. Try again.';
 
-type Props = { wsId: string; brief: Brief; permissions: BriefPermissions };
+type Props = { reviewReady: boolean; wsId: string; brief: Brief; permissions: BriefPermissions };
 
 // Where the brief stands, and the one or two actions that move it on. The database enforces every rule here;
 // this only decides what to offer and explains refusals.
-export function WorkflowPanel({ wsId, brief, permissions }: Props) {
+export function WorkflowPanel({ wsId, brief, permissions, reviewReady }: Props) {
   const queryClient = useQueryClient();
   const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe });
   const [comment, setComment] = useState('');
@@ -61,11 +61,10 @@ export function WorkflowPanel({ wsId, brief, permissions }: Props) {
     decide.mutate('request_changes');
   };
 
-  const waitingOnMe = permissions.submit || mayDecide;
   const when = (iso: string | null) => (iso ? stamp.format(new Date(iso)) : null);
 
   return (
-    <section aria-labelledby="workflow-heading" className={`card grid gap-4 p-5 ${waitingOnMe ? 'needs-you rounded-l-small' : ''}`}>
+    <section aria-labelledby="workflow-heading" className="grid gap-4 py-2 lg:pl-4">
       <div className="grid gap-2">
         <p className="text-xs text-muted">Status</p>
         <h2 id="workflow-heading" className="text-base font-medium">
@@ -87,10 +86,10 @@ export function WorkflowPanel({ wsId, brief, permissions }: Props) {
         <p className="text-ink-2">{submittedByMe ? 'You submitted this brief. An approver or admin will decide on it.' : 'Waiting for a decision. The brief and its review are locked meanwhile.'}</p>
       )}
 
-      {permissions.submit && (
+      {permissions.submit && reviewReady && (
         <button type="button" className="btn btn-primary justify-center" onClick={() => submit.mutate()} disabled={submit.isPending}>
           <Send size={16} strokeWidth={1.5} aria-hidden />
-          {submit.isPending ? 'Submitting…' : brief.status === 'changes_requested' ? 'Resubmit for review' : 'Submit for review'}
+          {submit.isPending ? 'Submitting…' : brief.status === 'changes_requested' ? 'Resubmit for human review' : 'Submit for human review'}
         </button>
       )}
       {submit.error && (
@@ -120,7 +119,7 @@ export function WorkflowPanel({ wsId, brief, permissions }: Props) {
         </p>
       )}
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-t border-line pt-4">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         <dt className="text-muted">Updated</dt>
         <dd className="meta self-center">{when(brief.updatedAt)}</dd>
         {brief.submittedAt && (

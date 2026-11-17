@@ -38,8 +38,8 @@ export function NewBriefPage() {
         {(['paste', 'upload'] as const).map((m) => (
           <label
             key={m}
-            className={`flex h-8 cursor-pointer items-center gap-2 rounded-small px-3 transition-colors duration-150 ease-out has-focus-visible:outline-2 has-focus-visible:outline-accent ${
-              mode === m ? 'bg-surface text-ink shadow-small' : 'text-ink-2'
+            className={`flex h-8 cursor-pointer items-center gap-2 rounded-small px-3 transition-colors duration-150 ease-out has-focus-visible:outline-2 has-focus-visible:outline-focus ${
+              mode === m ? 'bg-accent-soft text-accent inset-ring inset-ring-line' : 'text-ink-2'
             }`}
           >
             <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} className="sr-only" />

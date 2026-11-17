@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -6,7 +6,7 @@ import { ApiError, deleteBrief, fetchBrief, isNotFound, updateBrief } from '../.
 import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
-import { ReviewPanel } from './ReviewPanel';
+import { ReviewFindings, ReviewPanel, useBriefReview } from './ReviewPanel';
 import { SourceDownload } from './SourceDownload';
 import { WorkflowPanel } from './WorkflowPanel';
 
@@ -35,6 +35,10 @@ export function BriefPage() {
     retry: (count, err) => !isNotFound(err) && count < 1,
   });
 
+  const reviewQuery = useBriefReview(wsId, briefId, !!query.data && !deleted);
+  const generating = useIsMutating({ mutationKey: queryKeys.review(wsId, briefId) });
+  const review = reviewQuery.data?.review;
+
   const save = useMutation({
     mutationFn: (values: { title: string; body: string; version: number }) => updateBrief(wsId, briefId, values),
     onSuccess: async (res) => {
@@ -59,7 +63,7 @@ export function BriefPage() {
   });
 
   const back = (
-    <Link to={`/w/${wsId}`} className="mb-4 inline-flex items-center gap-1 text-ink-2">
+    <Link to={`/w/${wsId}`} className="mb-4 inline-flex items-center gap-1 text-accent">
       <ArrowLeft size={16} strokeWidth={1.5} aria-hidden />
       Briefs
     </Link>
@@ -82,7 +86,7 @@ export function BriefPage() {
 
   if (editingFrom !== null) {
     return (
-      <div className="max-w-3xl">
+      <div>
         {back}
         <h1 className="mb-6 page-title">Edit brief</h1>
         {save.error && (
@@ -90,6 +94,7 @@ export function BriefPage() {
             {saveError(save.error)}
           </p>
         )}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <BriefForm
           initial={brief}
           submitLabel="Save"
@@ -102,6 +107,12 @@ export function BriefPage() {
             void queryClient.invalidateQueries({ queryKey: queryKeys.brief(wsId, briefId), exact: true });
           }}
         />
+        {review?.review && <aside className="card p-5">
+          <h2 className="mb-4 hidden font-medium lg:block">Findings from the last AI review</h2>
+          <div className="hidden lg:block"><ReviewFindings review={review.review} /></div>
+          <details className="lg:hidden"><summary className="cursor-pointer font-medium">Findings from the last AI review</summary><div className="mt-4"><ReviewFindings review={review.review} /></div></details>
+        </aside>}
+        </div>
       </div>
     );
   }
@@ -111,18 +122,18 @@ export function BriefPage() {
       {back}
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="page-title">{brief.title}</h1>
+          <h1 className="font-doc text-4xl leading-tight text-accent-hover">{brief.title}</h1>
           <p className="meta mt-2">version {brief.version}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {permissions.edit && (
-            <button type="button" className="btn" onClick={() => setEditingFrom(brief.version)}>
+            <button type="button" className="btn btn-tonal" onClick={() => setEditingFrom(brief.version)}>
               <Pencil size={16} strokeWidth={1.5} aria-hidden />
               Edit
             </button>
           )}
           {permissions.delete && !confirmingDelete && (
-            <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)}>
+            <button type="button" className="btn btn-ghost hover:bg-negative-soft hover:text-negative" onClick={() => setConfirmingDelete(true)}>
               <Trash2 size={16} strokeWidth={1.5} aria-hidden />
               Delete
             </button>
@@ -152,13 +163,13 @@ export function BriefPage() {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 gap-6">
           {/* The brief as a document: set for reading, like the printed page it usually starts as. */}
-          <article className="card px-6 py-6 sm:px-8 sm:py-7">
+          <article className="rounded-small bg-surface px-6 py-6 shadow-[0_2px_8px_rgb(22_61_62/0.06)] sm:px-8 sm:py-7">
             <p className="max-w-[68ch] font-doc text-[17px] leading-7 whitespace-pre-wrap text-ink">{brief.body}</p>
           </article>
           <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
         </div>
         <aside className="grid gap-4 lg:sticky lg:top-8">
-          <WorkflowPanel wsId={wsId} brief={brief} permissions={permissions} />
+          <WorkflowPanel reviewReady={reviewQuery.isSuccess && review?.state === 'succeeded' && !review.outdated && review.briefVersion === brief.version && !generating} wsId={wsId} brief={brief} permissions={permissions} />
           {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
         </aside>
       </div>

@@ -35,7 +35,7 @@ function Sidebar({ email, onSignOut }: { email: string; onSignOut: () => void })
             to={`/w/${ws.id}`}
             className={({ isActive }) =>
               `flex h-8 max-w-56 shrink-0 items-center gap-2 rounded-control px-3 transition-colors duration-150 ease-out md:h-9 md:max-w-none md:px-2 ${
-                isActive ? 'bg-surface text-ink shadow-small' : 'text-ink-2 hover:bg-line'
+                isActive ? 'bg-accent-soft text-accent font-medium inset-ring inset-ring-line shadow-[inset_3px_0_var(--color-focus)]' : 'text-ink-2 hover:bg-accent-soft'
               }`
             }
           >

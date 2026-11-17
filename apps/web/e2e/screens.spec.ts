@@ -47,7 +47,7 @@ const screens: Screen[] = [
   },
   { name: 'brief-in-review-approver', path: briefPath('inReview'), routes: briefRoutes('inReview', 'locked'), ready: button('Approve') },
   { name: 'brief-in-review-submitter', path: briefPath('mine'), routes: briefRoutes('mine', 'locked'), ready: text(/You submitted this brief/) },
-  { name: 'brief-changes-requested', path: briefPath('changes'), routes: briefRoutes('changes', 'done'), ready: button('Resubmit for review') },
+  { name: 'brief-changes-requested', path: briefPath('changes'), routes: briefRoutes('changes', 'done'), ready: button('Resubmit for human review') },
   { name: 'brief-approved', path: briefPath('approved'), routes: briefRoutes('approved', 'locked'), ready: text(/This brief is final/) },
   { name: 'brief-uploaded', path: briefPath('uploaded'), routes: briefRoutes('uploaded', 'done'), ready: text('Noordzee_Q1-2027_brief_v2.pdf') },
   { name: 'new-brief-paste', path: `${workspacePath}/briefs/new`, ready: heading('New brief') },
@@ -81,3 +81,27 @@ for (const screen of screens) {
     expect(unexpected).toEqual([]);
   });
 }
+
+test('updates an outdated assessment before human submission', async ({ page }, testInfo) => {
+  const origin = new URL(testInfo.project.use.baseURL ?? '').origin;
+  await pinClock(page);
+  await seedSession(page, origin);
+  const path = briefPath('reviewed');
+  const current = briefRoutes('reviewed', 'done');
+  const reviewPath = `/api${path.replace('/w/', '/workspaces/')}/review`;
+  await mockApi(page, {
+    ...baseRoutes,
+    ...briefRoutes('reviewed', 'outdated'),
+    [`POST ${reviewPath}`]: current[`GET ${reviewPath}`],
+  });
+  await page.goto(path);
+  const update = page.getByRole('button', { name: 'Update AI review' });
+  await expect(update).toBeVisible();
+  const submit = page.getByRole('button', { name: 'Submit for human review' });
+  await expect(submit).toHaveCount(0);
+  await update.click();
+  await expect(submit).toBeVisible();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  if (testInfo.project.name === 'mobile') await page.locator('summary').filter({ hasText: 'Findings from the last AI review' }).click();
+  await expect(page.getByText('What budget range should we plan media and production against?').filter({ visible: true })).toBeVisible();
+});

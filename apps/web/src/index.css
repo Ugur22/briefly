@@ -1,5 +1,4 @@
-/* Briefly design system. The agency's brief desk: graphite surfaces stay quiet; the one accent is the editor's
-   blue pencil. Rich colour lives only in the review coverage (present, unclear, missing).
+/* Briefly design system. Petrol teal identifies actions and navigation; review statuses carry their own colours.
    Design pass via unslop by Damir Sokolovsky (@heydamir), CC BY 4.0. */
 @import 'tailwindcss';
 
@@ -10,20 +9,20 @@
   --color-transparent: transparent;
   --color-current: currentColor;
 
-  --color-bg: #fafafa;
+  --color-bg: #f4f8f7;
   --color-surface: #ffffff;
-  --color-sunken: #f4f4f5;
-  --color-line: rgb(23 23 23 / 0.08);
-  --color-line-strong: rgb(23 23 23 / 0.14);
+  --color-sunken: #edf3f2;
+  --color-line: #c5dbd8;
+  --color-line-strong: #a7c2be;
 
   --color-ink: #171717;
   --color-ink-2: #525252;
   --color-muted: #6b6b6b;
 
-  /* blue pencil: the primary action, the selection, and the margin rule on whatever needs you */
-  --color-accent: #2b59c3;
-  --color-accent-hover: #234aa6;
-  --color-accent-soft: rgb(43 89 195 / 0.08);
+  --color-focus: #397d7c;
+  --color-accent: #215f60;
+  --color-accent-hover: #163d3e;
+  --color-accent-soft: #e4efed;
 
   /* review coverage, the one place with several hues; each means something */
   --color-present: #3f8a5f;
@@ -56,7 +55,7 @@
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-accent;
+    @apply outline-2 outline-offset-2 outline-focus;
   }
 
   /* toasts follow the system */
@@ -75,6 +74,10 @@
     @apply border-accent bg-accent text-white hover:bg-accent-hover;
   }
 
+  .btn-tonal {
+    @apply border-transparent bg-accent-soft text-accent hover:bg-line;
+  }
+
   .btn-ghost {
     @apply border-transparent bg-transparent text-ink-2;
   }
@@ -84,11 +87,11 @@
   }
 
   .input {
-    @apply h-9 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink transition-colors duration-150 ease-out focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
+    @apply h-9 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink transition-colors duration-150 ease-out focus:border-focus focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
   }
 
   .textarea {
-    @apply w-full resize-y rounded-control border border-line-strong bg-surface px-3 py-2 text-sm text-ink transition-colors duration-150 ease-out focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
+    @apply w-full resize-y rounded-control border border-line-strong bg-surface px-3 py-2 text-sm text-ink transition-colors duration-150 ease-out focus:border-focus focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
   }
 
   .label {
@@ -115,8 +118,4 @@
     @apply font-mono text-xs text-muted tabular-nums;
   }
 
-  /* The signature: a blue-pencil rule in the margin of whatever is waiting on you. */
-  .needs-you {
-    @apply border-l-2 border-l-accent;
-  }
 }

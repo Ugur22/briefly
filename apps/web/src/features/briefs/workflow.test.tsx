@@ -42,7 +42,7 @@ function serve(handler: (url: string, body: unknown) => Response) {
 function renderPanel(brief: Brief, permissions: BriefPermissions) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <WorkflowPanel wsId={wsId} brief={brief} permissions={permissions} />
+      <WorkflowPanel reviewReady wsId={wsId} brief={brief} permissions={permissions} />
     </QueryClientProvider>,
   );
 }
@@ -57,7 +57,7 @@ describe('WorkflowPanel', () => {
     const calls = serve(() => Response.json({ brief: { ...base, status: 'in_review', submittedBy: meId }, permissions: none }));
     renderPanel(base, { ...none, edit: true, submit: true });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for human review' }));
 
     await vi.waitFor(() => expect(calls.find((c) => c.url === `${api}/submit`)?.body).toEqual({ version: 2 }));
   });
@@ -66,7 +66,7 @@ describe('WorkflowPanel', () => {
     serve(() => Response.json({ error: 'no_current_review' }, { status: 409 }));
     renderPanel(base, { ...none, edit: true, submit: true });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for human review' }));
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/Generate an AI review/);
   });
@@ -107,7 +107,7 @@ describe('WorkflowPanel', () => {
     renderPanel({ ...base, status: 'changes_requested', decisionComment: 'Add the launch date.' }, { ...none, edit: true, submit: true });
 
     expect(screen.getByText('Add the launch date.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Resubmit for review' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Resubmit for human review' })).toBeTruthy();
   });
 
   it('marks an approved brief as final, with nothing to do', () => {

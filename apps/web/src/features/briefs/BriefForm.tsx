@@ -28,10 +28,10 @@ export function BriefForm({ initial, submitLabel, pending, onSubmit, onCancel }:
       <label className="label">
         Brief
         <textarea
-          className="textarea font-doc text-[17px] leading-7 font-normal text-ink"
+          className="textarea field-sizing-content min-h-40 max-h-[65vh] font-doc text-[17px] leading-7 font-normal text-ink"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          rows={16}
+          rows={6}
           maxLength={BRIEF_BODY_MAX}
         />
       </label>

@@ -22,7 +22,13 @@ export const workspacePath = `/w/${noordzee.id}`;
 
 export function briefRoutes(key: BriefKey, review: keyof typeof reviews): Routes {
   const path = `${ws}/briefs/${briefId(key)}`;
-  return { [`GET ${path}`]: briefResponse(key), [`GET ${path}/review`]: reviews[review] };
+  const brief = briefResponse(key);
+  const result = reviews[review];
+  const stored = result.review && {
+    ...result.review,
+    briefVersion: brief.brief.version - (result.review.outdated ? 1 : 0),
+  };
+  return { [`GET ${path}`]: brief, [`GET ${path}/review`]: { ...result, review: stored } };
 }
 
 // Returns the list of requests nobody mocked (and any that tried to reach Okta), for the test to assert empty.
