@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 grant execute on all functions in schema extensions to anon, authenticated;
-select plan(27);
+select plan(30);
 
 insert into public.users (id, issuer, subject, email) values
   ('e0000000-0000-4000-8000-000000000001', 'https://integrator-1689783.okta.com/oauth2/default', 'uid-editor', 'editor@test.dev'),
@@ -44,10 +44,14 @@ select is_empty($$update public.briefs set title = 'pwned' where id = 'b1000000-
 select is_empty($$delete from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1' returning id$$, 'editor cannot delete');
 select is((select title from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1'), 'A brief v2', 'the refused delete left the brief in place');
 
+select lives_ok($$insert into public.briefs (id, workspace_id, title, body, source_name, source_mime, source_size) values ('a2000000-0000-4000-8000-0000000000a2', 'a0000000-0000-4000-8000-00000000000a', 'Uploaded', 'text', 'brief.pdf', 'application/pdf', 1234)$$, 'editor creates an uploaded brief with its source');
+select throws_ok($$insert into public.briefs (workspace_id, title, body, source_name) values ('a0000000-0000-4000-8000-00000000000a', 'Half a source', 'x', 'brief.pdf')$$, '23514', null, 'source fields are all or none');
+select throws_ok($$update public.briefs set source_name = 'other.pdf' where id = 'a2000000-0000-4000-8000-0000000000a2'$$, '42501', 'permission denied for table briefs', 'the source cannot be changed afterwards (column privilege)');
+
 -- approver of A: read-only
 select set_config('request.jwt.claims', '{"iss":"https://integrator-1689783.okta.com/oauth2/default","aud":"api://briefly","cid":"0oa19zytyljuR1XIg698","role":"authenticated","uid":"uid-approver","email":"approver@test.dev"}', true);
 
-select is((select count(*)::int from public.briefs), 2, 'approver reads every A brief');
+select is((select count(*)::int from public.briefs), 3, 'approver reads every A brief');
 select throws_ok($$insert into public.briefs (workspace_id, title, body) values ('a0000000-0000-4000-8000-00000000000a', 'Nope', 'x')$$, '42501', 'new row violates row-level security policy for table "briefs"', 'approver cannot create (RLS)');
 select is_empty($$update public.briefs set title = 'by approver' where id = 'a1000000-0000-4000-8000-0000000000a1' returning id$$, 'approver cannot edit');
 select is((select title from public.briefs where id = 'a1000000-0000-4000-8000-0000000000a1'), 'A brief v2', 'the refused edit changed nothing');

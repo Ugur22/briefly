@@ -1,5 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": ["node"] },
+  "compilerOptions": {
+    "types": ["node"],
+    // The extraction worker runs as plain Node (type stripping) in dev and tests, which needs real file extensions.
+    "allowImportingTsExtensions": true
+  },
   "include": ["src", "scripts", "tsup.config.ts"]
 }

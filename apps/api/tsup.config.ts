@@ -1,7 +1,8 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/main.ts'],
+  // The extraction worker is its own file: extract-text.ts starts it as dist/extract-worker.js.
+  entry: { main: 'src/main.ts', 'extract-worker': 'src/briefs/infra/extract-worker.ts' },
   format: ['esm'],
   platform: 'node',
   target: 'node22',

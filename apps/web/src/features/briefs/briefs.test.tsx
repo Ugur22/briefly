@@ -17,6 +17,7 @@ const brief = {
   updatedAt: '2026-11-18T09:00:00.000Z',
   body: 'Five thousand test rides in April.',
   createdAt: '2026-11-18T08:00:00.000Z',
+  source: null as null | { name: string; mime: string; size: number },
 };
 const workspace = { id: wsId, name: 'Acme Rotterdam', role: 'editor' };
 
@@ -173,6 +174,8 @@ describe('deleting a brief', () => {
 
     expect(await screen.findByText('No briefs yet.')).toBeTruthy();
     await waitFor(() => expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(1));
+    // The deleted brief is not fetched again (that would be a 404 in the console).
+    expect(calls.filter((c) => c.method === 'GET' && c.url === `${api}/briefs/${briefId}`)).toHaveLength(1);
   });
 });
 

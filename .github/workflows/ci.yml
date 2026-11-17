@@ -29,6 +29,8 @@ jobs:
           node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run check
+      # The bundled extraction worker, not the .ts the unit tests use: proves pdf.js and mammoth survived bundling.
+      - run: node apps/api/scripts/extract-smoke.ts
 
   image:
     runs-on: ubuntu-latest

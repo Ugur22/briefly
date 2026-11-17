@@ -11,7 +11,11 @@ import {
 import type { z } from 'zod';
 
 export class ApiError extends Error {
-  constructor(readonly status: number) {
+  // `code` is the API's `{ error }` value when it sent one (e.g. 'no_text' for an upload), for specific messages.
+  constructor(
+    readonly status: number,
+    readonly code?: string,
+  ) {
     super(`API request failed with status ${status}`);
   }
 }
@@ -39,15 +43,24 @@ async function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, 
 
   const init: RequestInit = { headers };
   if (method !== 'GET') init.method = method;
-  if (body !== undefined) {
+  // FormData sets its own multipart Content-Type (with the boundary); everything else is JSON.
+  if (body instanceof FormData) {
+    init.body = body;
+  } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body);
   }
 
   const res = await fetch(path, init);
   if (res.status === 401) auth.onUnauthorized();
-  if (!res.ok) throw new ApiError(res.status);
+  if (!res.ok) throw new ApiError(res.status, await errorCode(res));
   return res;
+}
+
+async function errorCode(res: Response): Promise<string | undefined> {
+  const body: unknown = await res.json().catch(() => null);
+  const error = (body as { error?: unknown } | null)?.error;
+  return typeof error === 'string' ? error : undefined;
 }
 
 const getJson = async <S extends z.ZodType>(path: string, schema: S): Promise<z.infer<S>> =>
@@ -72,3 +85,14 @@ export const updateBrief = (wsId: string, briefId: string, input: BriefUpdate) =
 export const deleteBrief = async (wsId: string, briefId: string) => {
   await request('DELETE', brief(wsId, briefId));
 };
+
+export const uploadBrief = async (wsId: string, file: File, title?: string) => {
+  const form = new FormData();
+  if (title?.trim()) form.append('title', title);
+  form.append('file', file);
+  return BriefResponse.parse(await (await request('POST', `${ws(wsId)}/briefs/upload`, form)).json());
+};
+
+// The original comes back as bytes, not JSON, so it skips the contract parsing; the token stays in the header.
+export const downloadBriefSource = async (wsId: string, briefId: string): Promise<Blob> =>
+  (await request('GET', `${brief(wsId, briefId)}/source`)).blob();

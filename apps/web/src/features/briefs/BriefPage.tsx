@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError, deleteBrief, fetchBrief, isNotFound, updateBrief } from '../../lib/api';
 import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
+import { SourceDownload } from './SourceDownload';
 
 function saveError(err: unknown) {
   if (err instanceof ApiError && err.status === 409) return 'Someone else changed this brief. Copy your text, then reload to see their version.';
@@ -19,10 +20,14 @@ export function BriefPage() {
   // pick up a background refetch and quietly overwrite whoever saved in between.
   const [editingFrom, setEditingFrom] = useState<number | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Navigation is a transition, so this page stays mounted for a moment after a delete. Turning its query off
+  // first means dropping the cache entry can't make it fetch the deleted brief again (a 404).
+  const [deleted, setDeleted] = useState(false);
 
   const query = useQuery({
     queryKey: queryKeys.brief(wsId, briefId),
     queryFn: () => fetchBrief(wsId, briefId),
+    enabled: !deleted,
     retry: (count, err) => !isNotFound(err) && count < 1,
   });
 
@@ -38,9 +43,10 @@ export function BriefPage() {
   const remove = useMutation({
     mutationFn: () => deleteBrief(wsId, briefId),
     onSuccess: async () => {
-      queryClient.removeQueries({ queryKey: queryKeys.brief(wsId, briefId) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.briefs(wsId), exact: true });
+      setDeleted(true);
       navigate(`/w/${wsId}`, { replace: true });
+      queryClient.removeQueries({ queryKey: queryKeys.brief(wsId, briefId), exact: true });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.briefs(wsId), exact: true });
     },
   });
 
@@ -116,6 +122,7 @@ export function BriefPage() {
         </p>
       )}
       {remove.error && <p role="alert">Could not delete this brief.</p>}
+      {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
       <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{brief.body}</pre>
     </>
   );

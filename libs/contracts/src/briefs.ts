@@ -19,9 +19,25 @@ export const BriefSummary = z.object({
 });
 export type BriefSummary = z.infer<typeof BriefSummary>;
 
+export const BRIEF_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const BriefSourceMime = z.enum([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+export type BriefSourceMime = z.infer<typeof BriefSourceMime>;
+
+// The original file an uploaded brief was extracted from.
+export const BriefSource = z.object({
+  name: z.string(),
+  mime: BriefSourceMime,
+  size: z.number().int().positive(),
+});
+export type BriefSource = z.infer<typeof BriefSource>;
+
 export const Brief = BriefSummary.extend({
   body: z.string(),
   createdAt: z.iso.datetime({ offset: true }),
+  source: BriefSource.nullable(),
 });
 export type Brief = z.infer<typeof Brief>;
 
@@ -60,3 +76,9 @@ export const BriefParams = z.object({
   wsId: z.uuid(),
   briefId: z.uuid(),
 });
+
+// Why an upload was refused, so the web can say something specific. Status codes: 413 too_large,
+// 415 unsupported_type, 422 the rest, 503 busy (extraction capacity full; try again).
+export const UploadError = z.enum(['missing_file', 'too_large', 'unsupported_type', 'unreadable', 'no_text', 'too_long', 'busy']);
+export type UploadError = z.infer<typeof UploadError>;
+export const UploadErrorBody = z.object({ error: UploadError });
