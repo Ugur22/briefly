@@ -10,9 +10,10 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - Container: `docker compose up --build api`, then `curl localhost:3000/api/health`.
 
 ## Architecture rules
-- Identity: Okta access token → Node verifies it (issuer, audience, expiry, `role`) → a per-request Supabase client forwards the same token, so RLS decides what the user sees. Never use the secret-key client in a request path; `platform/system-client` is for system jobs only and ESLint blocks importing it from request code.
+- Identity: Okta access token → Node verifies it (issuer, audience, expiry, `cid`, `role`) → a per-request Supabase client forwards the same token, so RLS decides what the user sees. Never use the secret-key client in a request path; `platform/system-client` is for system jobs only and ESLint blocks importing it from request code.
 - The browser only talks to the Node API. No `supabase-js` in `apps/web`. `apps/web/src/lib/api.ts` is the only caller of `/api/*` and parses every response with the shared contract.
-- Tenancy: every tenant table has `workspace_id` and RLS via `is_member` / `has_role`. Routes carry the workspace in the path (`/api/workspaces/:wsId/...`); unknown and forbidden workspaces both return 404.
+- Users are keyed on Okta `iss` + `uid`. `sub` is the login email and can change, and `auth.uid()` throws on it: use `private.current_user_id()` (`scripts/rls-coverage.sh` fails on `auth.uid()`). Okta's `aud` is per authorization server, so `cid` is what proves a token was issued to Briefly; Supabase checks neither, so `private.trusted_claims()` does. The Okta `role` claim must only ever yield `authenticated` (or nothing): PostgREST trusts it, and `service_role` would bypass RLS.
+- Tenancy: every tenant table has `workspace_id` and RLS via `workspace_id in (select private.member_workspace_ids())`. Routes carry the workspace in the path (`/api/workspaces/:wsId/...`); unknown and forbidden workspaces both return 404.
 - Query keys come from `apps/web/src/lib/queryKeys.ts`; workspace data lives under `['ws', wsId, ...]`. Logout clears the whole cache.
 - AI calls happen only in the API, with structured output validated by Zod. Brief text is untrusted data and is never logged.
 - DDD where it pays: pure domain rules in `*/domain`, use cases in `*/application`, Supabase/LLM adapters in `*/infra`. No empty layers, no interfaces with a single implementation except `ReviewGenerator` (faked in tests).

@@ -7,6 +7,12 @@ const Env = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   APP_VERSION: z.string().default('0.0.0-dev'),
   GIT_SHA: z.string().default('dev'),
+  // No trailing slash: it must equal the token's iss exactly.
+  OKTA_ISSUER: z.url().refine((v) => !v.endsWith('/'), 'must not end with /'),
+  OKTA_AUDIENCE: z.string().min(1),
+  OKTA_CLIENT_ID: z.string().min(1),
+  SUPABASE_URL: z.url(),
+  SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
 });
 
 export type Config = z.infer<typeof Env>;

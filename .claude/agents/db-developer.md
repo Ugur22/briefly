@@ -10,8 +10,9 @@ You implement database changes for Briefly. Follow `CLAUDE.md`: no commits, neve
 
 ## Rules
 - One new migration per change in `supabase/migrations/`; never edit a migration that has been applied elsewhere.
-- Every tenant table: `workspace_id not null`, RLS enabled, policies through `is_member(ws)` / `has_role(ws, role)`, and an index on `workspace_id`.
-- Identity comes from `auth.jwt()->>'sub'` plus `auth.jwt()->>'iss'` (Okta subjects are not UUIDs, so `auth.uid()` does not apply). Wrap `auth.jwt()` in `(select ...)` inside policies.
+- Every tenant table: `workspace_id not null`, RLS enabled, policies through `workspace_id in (select private.member_workspace_ids())` (evaluated once per statement), and an index on `workspace_id`.
+- Identity is `private.current_user_id()`, which matches `users(issuer, subject)` to the token's `iss` + `uid` and only when `private.trusted_claims()` (iss, aud, cid, role) holds. Never `auth.uid()` or `sub`: Okta's sub is the login email.
+- Grants are explicit: the identity migration revokes default privileges, so every new table or function needs its own `grant ... to authenticated`, asserted in `supabase/tests/privileges.test.sql`.
 - Helper functions used by policies are `security definer`, `stable`, with `set search_path = ''`. RPCs for state changes are `security invoker`.
 - Storage objects live at `workspaces/{workspace_id}/...` in a private bucket; policies check `(storage.foldername(name))[1]`.
 
