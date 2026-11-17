@@ -33,7 +33,7 @@ export function NewBriefPage() {
         <ArrowLeft size={16} strokeWidth={1.5} aria-hidden />
         Briefs
       </Link>
-      <h1 className="mb-6 text-[28px] leading-tight font-medium">New brief</h1>
+      <h1 className="mb-6 page-title">New brief</h1>
       <div role="radiogroup" aria-label="How to add the brief" className="mb-6 inline-flex rounded-control border border-line bg-sunken p-1">
         {(['paste', 'upload'] as const).map((m) => (
           <label

@@ -84,7 +84,7 @@ export function BriefPage() {
     return (
       <div className="max-w-3xl">
         {back}
-        <h1 className="mb-6 text-[28px] leading-tight font-medium">Edit brief</h1>
+        <h1 className="mb-6 page-title">Edit brief</h1>
         {save.error && (
           <p role="alert" className="alert mb-4">
             {saveError(save.error)}
@@ -111,7 +111,7 @@ export function BriefPage() {
       {back}
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[28px] leading-tight font-medium">{brief.title}</h1>
+          <h1 className="page-title">{brief.title}</h1>
           <p className="meta mt-2">version {brief.version}</p>
         </div>
         <div className="flex flex-wrap gap-2">

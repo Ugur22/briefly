@@ -20,7 +20,6 @@ export const STATUS_LABELS: Record<AreaStatus, string> = { present: 'Present', u
 
 // The one place on the screen with several hues, and each means something.
 const FILL: Record<AreaStatus, string> = { present: 'bg-present', unclear: 'bg-unclear', missing: 'bg-missing' };
-const TEXT: Record<AreaStatus, string> = { present: 'text-present', unclear: 'text-unclear', missing: 'text-missing' };
 
 const FAILURES: Record<string, string> = {
   refused: 'The model declined to review this brief.',
@@ -47,7 +46,7 @@ function Coverage({ review }: { review: Review }) {
       </div>
       <figcaption className="meta flex flex-wrap gap-x-4 gap-y-1">
         {(['present', 'unclear', 'missing'] as const).map((s) => (
-          <span key={s} className="inline-flex items-center gap-1.5">
+          <span key={s} className="inline-flex items-center gap-2">
             <span className={`size-2 rounded-full ${FILL[s]}`} aria-hidden />
             {counts[s]} {STATUS_LABELS[s].toLowerCase()}
           </span>
@@ -67,11 +66,16 @@ function ReviewView({ review }: { review: Review }) {
         <tbody className="divide-y divide-line border-y border-line">
           {REVIEW_AREAS.map((area) => (
             <tr key={area} className="align-top">
-              <th scope="row" className="w-32 py-2.5 pr-4 font-medium">
-                {AREA_LABELS[area]}
+              {/* Status sits under the area so the note keeps its width on a phone. The hue is in the dot only:
+                  as text, present and unclear fall below 4.5:1 on white. */}
+              <th scope="row" className="w-32 py-3 pr-4 font-medium">
+                <div>{AREA_LABELS[area]}</div>
+                <div className="mt-1 flex items-center gap-2 font-normal whitespace-nowrap text-ink-2">
+                  <span className={`size-2 rounded-full ${FILL[review.areas[area].status]}`} aria-hidden />
+                  {STATUS_LABELS[review.areas[area].status]}
+                </div>
               </th>
-              <td className={`w-24 py-2.5 pr-4 ${TEXT[review.areas[area].status]}`}>{STATUS_LABELS[review.areas[area].status]}</td>
-              <td className="py-2.5 text-ink-2">{review.areas[area].note}</td>
+              <td className="py-3 text-ink-2">{review.areas[area].note}</td>
             </tr>
           ))}
         </tbody>
@@ -79,13 +83,13 @@ function ReviewView({ review }: { review: Review }) {
       {review.questions.length > 0 && (
         <div className="grid gap-2">
           <h3 className="font-medium">Questions for the client</h3>
-          <ol className="grid list-decimal gap-1.5 pl-5 text-ink-2 marker:text-muted">{review.questions.map((q, i) => <li key={i}>{q}</li>)}</ol>
+          <ol className="grid list-decimal gap-2 pl-5 text-ink-2 marker:text-muted">{review.questions.map((q, i) => <li key={i}>{q}</li>)}</ol>
         </div>
       )}
       {review.risks.length > 0 && (
         <div className="grid gap-2">
           <h3 className="font-medium">Risks</h3>
-          <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-muted">{review.risks.map((r, i) => <li key={i}>{r}</li>)}</ul>
+          <ul className="grid list-disc gap-2 pl-5 text-ink-2 marker:text-muted">{review.risks.map((r, i) => <li key={i}>{r}</li>)}</ul>
         </div>
       )}
     </div>

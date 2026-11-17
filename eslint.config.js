@@ -30,9 +30,14 @@ export default defineConfig(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/src/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
+  },
+  {
+    // Playwright runs in Node but its init scripts run in the page. No react-hooks: fixture `use()` isn't a hook.
+    files: ['apps/web/e2e/**/*.ts', 'apps/web/*.config.ts'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 );

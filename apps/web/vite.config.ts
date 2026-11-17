@@ -10,5 +10,6 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': 'http://127.0.0.1:3000' },
   },
-  test: { environment: 'jsdom' },
+  // Only unit tests; e2e/ is Playwright's.
+  test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] },
 });

@@ -7,7 +7,8 @@
   "scripts": {
     "check": "scripts/check-size.sh && scripts/rls-coverage.sh && nx run-many -t lint typecheck test build --output-style=stream-without-prefixes",
     "dev:api": "nx run api:dev",
-    "dev:web": "nx run web:dev"
+    "dev:web": "nx run web:dev",
+    "visual": "nx run web:visual"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

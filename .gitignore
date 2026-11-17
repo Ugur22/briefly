@@ -9,3 +9,8 @@ coverage/
 !.env.example
 .claude/settings.local.json
 .claude/worktrees/
+
+# Playwright visual check output
+apps/web/e2e/screenshots/
+apps/web/test-results/
+apps/web/playwright-report/

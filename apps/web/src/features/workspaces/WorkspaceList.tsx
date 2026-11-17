@@ -12,7 +12,7 @@ export function WorkspaceList() {
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-[28px] leading-tight font-medium">Your workspaces</h1>
+        <h1 className="page-title">Your workspaces</h1>
         <p className="mt-2 text-ink-2">Each workspace is one client account. You see the briefs of the workspaces you belong to.</p>
       </header>
       {data.length === 0 ? (

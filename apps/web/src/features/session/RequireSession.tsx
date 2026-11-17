@@ -19,36 +19,40 @@ export function Wordmark() {
 function Sidebar({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const workspaces = useQuery({ queryKey: queryKeys.workspaces, queryFn: fetchWorkspaces });
 
+  // Below md the sidebar folds into a top bar: wordmark and sign out on one row, workspaces as a scrolling row
+  // under it. Grid placement moves the same elements, so there is one sign-out button at every width.
   return (
-    <aside className="flex flex-col gap-6 border-line bg-sunken px-3 pt-5 pb-4 md:sticky md:top-0 md:h-screen md:border-r">
-      <NavLink to="/" className="px-2 hover:no-underline">
+    <aside className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 border-b border-line bg-sunken px-4 py-3 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:items-stretch md:gap-6 md:border-r md:border-b-0 md:px-3 md:pt-5 md:pb-4">
+      <NavLink to="/" className="hover:no-underline md:px-2">
         <Wordmark />
       </NavLink>
 
-      <nav aria-label="Workspaces" className="grid gap-0.5">
-        <p className="px-2 pb-2 text-xs text-muted">Workspaces</p>
+      <nav aria-label="Workspaces" className="col-span-2 row-start-2 -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:grid md:gap-0.5 md:overflow-visible md:px-0">
+        <p className="hidden px-2 pb-2 text-xs text-muted md:block">Workspaces</p>
         {workspaces.data?.map((ws) => (
           <NavLink
             key={ws.id}
             to={`/w/${ws.id}`}
             className={({ isActive }) =>
-              `flex h-9 items-center gap-2.5 rounded-control px-2 transition-colors duration-150 ease-out ${
+              `flex h-8 max-w-56 shrink-0 items-center gap-2 rounded-control px-3 transition-colors duration-150 ease-out md:h-9 md:max-w-none md:px-2 ${
                 isActive ? 'bg-surface text-ink shadow-small' : 'text-ink-2 hover:bg-line'
               }`
             }
           >
             <span className="truncate">{ws.name}</span>
-            <span className="meta ml-auto">{ws.role}</span>
+            <span className="meta ml-auto hidden md:inline">{ws.role}</span>
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto grid gap-2 border-t border-line px-2 pt-3">
-        <p className="truncate text-ink-2" title={email}>
+      <div className="col-start-2 row-start-1 md:mt-auto md:grid md:gap-2 md:border-t md:border-line md:px-2 md:pt-3">
+        <p className="hidden truncate text-ink-2 md:block" title={email}>
           {email}
         </p>
-        <HealthStatus />
-        <button type="button" className="btn btn-ghost -ml-2 w-fit px-2" onClick={onSignOut}>
+        <div className="hidden md:block">
+          <HealthStatus />
+        </div>
+        <button type="button" className="btn btn-ghost w-fit px-2 md:-ml-2" onClick={onSignOut}>
           <LogOut size={16} strokeWidth={1.5} aria-hidden />
           Sign out
         </button>
@@ -96,7 +100,8 @@ export function RequireSession() {
   };
 
   return (
-    <div className="grid min-h-screen md:grid-cols-[248px_minmax(0,1fr)]">
+    // content-start: on mobile a short page would otherwise stretch the top bar to fill min-h-screen.
+    <div className="grid min-h-screen content-start md:grid-cols-[248px_minmax(0,1fr)]">
       <Sidebar email={me.data.email} onSignOut={signOut} />
       <main className="w-full max-w-[1240px] px-4 py-6 md:px-8 md:py-8">
         <Outlet />

@@ -18,7 +18,7 @@
 
   --color-ink: #171717;
   --color-ink-2: #525252;
-  --color-muted: #737373;
+  --color-muted: #6b6b6b;
 
   /* blue pencil: the primary action, the selection, and the margin rule on whatever needs you */
   --color-accent: #2b59c3;
@@ -93,6 +93,10 @@
 
   .label {
     @apply grid gap-2 font-medium text-ink-2;
+  }
+
+  .page-title {
+    @apply text-[28px] leading-tight font-medium;
   }
 
   .card {

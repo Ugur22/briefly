@@ -25,7 +25,7 @@ export function WorkspacePage() {
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-[28px] leading-tight font-medium">{data.name}</h1>
+        <h1 className="page-title">{data.name}</h1>
         <p className="mt-2 text-ink-2">
           Your role: <span className="meta">{data.role}</span>
         </p>
