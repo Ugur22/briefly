@@ -18,6 +18,7 @@ const brief: Brief = {
   body: 'Confidential client plan',
   updatedAt: '2026-11-18T09:00:00.000Z',
   createdAt: '2026-11-18T09:00:00.000Z',
+  source: null,
 };
 
 // The caller is a member of workspace A only, with whatever role the test sets.
@@ -30,6 +31,7 @@ const briefs = {
   update: vi.fn(async () => updateResult),
   remove: vi.fn(async (ws: string, id: string) => ws === wsA && id === briefId),
 } satisfies BriefsRepo;
+const sources = { put: vi.fn(async () => 'ok' as const), get: vi.fn(async () => null), remove: vi.fn(async () => true) };
 const identity = (): IdentityRepo => ({
   provisionMe: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'a@test.dev' }),
   listWorkspaces: async () => [{ id: wsA, name: 'A', role }],
@@ -37,7 +39,7 @@ const identity = (): IdentityRepo => ({
 });
 
 describe('briefs routes', () => {
-  const app = buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs });
+  const app = buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs, sourcesFor: () => sources });
   afterAll(() => app.close());
 
   const call = async (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: unknown) =>
@@ -111,8 +113,16 @@ describe('briefs routes', () => {
     expect(res.statusCode).toBe(status);
   });
 
-  it('lets an admin delete', async () => {
+  it('lets an admin delete, and removes the original with it', async () => {
     role = 'admin';
+
+    expect((await call('DELETE', `/api/workspaces/${wsA}/briefs/${briefId}`)).statusCode).toBe(204);
+    expect(sources.remove).toHaveBeenLastCalledWith(`workspaces/${wsA}/briefs/${briefId}/original`);
+  });
+
+  it('still answers 204 when the original cannot be removed (the row, and so all access, is already gone)', async () => {
+    role = 'admin';
+    sources.remove.mockRejectedValueOnce(new Error('storage down'));
 
     expect((await call('DELETE', `/api/workspaces/${wsA}/briefs/${briefId}`)).statusCode).toBe(204);
   });

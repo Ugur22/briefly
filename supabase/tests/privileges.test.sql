@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- The migration revokes default EXECUTE on new functions, which would include pgTAP's own.
 grant execute on all functions in schema extensions to anon, authenticated;
-select plan(26);
+select plan(30);
 
 select table_privs_are('public', 'users', 'anon', array[]::text[], 'anon has no access to users');
 select table_privs_are('public', 'workspaces', 'anon', array[]::text[], 'anon has no access to workspaces');
@@ -30,6 +30,10 @@ select column_privs_are('public', 'briefs', 'body', 'authenticated', array['SELE
 select column_privs_are('public', 'briefs', 'created_by', 'authenticated', array['SELECT'], 'created_by is set by the database');
 select column_privs_are('public', 'briefs', 'status', 'authenticated', array['SELECT'], 'status is not writable yet');
 select column_privs_are('public', 'briefs', 'version', 'authenticated', array['SELECT'], 'version is set by the database');
+select column_privs_are('public', 'briefs', 'id', 'authenticated', array['SELECT', 'INSERT'], 'the API chooses a new brief id, which is never changed');
+select column_privs_are('public', 'briefs', 'source_name', 'authenticated', array['SELECT', 'INSERT'], 'source_name is set once');
+select column_privs_are('public', 'briefs', 'source_mime', 'authenticated', array['SELECT', 'INSERT'], 'source_mime is set once');
+select column_privs_are('public', 'briefs', 'source_size', 'authenticated', array['SELECT', 'INSERT'], 'source_size is set once');
 select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'anon', array[]::text[], 'anon cannot call workspace_ids_with_role');
 select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'authenticated', array['EXECUTE'], 'authenticated can call workspace_ids_with_role (policies need it)');
 

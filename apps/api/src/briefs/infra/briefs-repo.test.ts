@@ -32,6 +32,9 @@ const row = {
   updated_at: '2026-11-18 09:00:00.123+00',
   body: 'text',
   created_at: '2026-11-18 08:00:00+00',
+  source_name: null,
+  source_mime: null,
+  source_size: null,
 };
 
 describe('briefsRepo', () => {
@@ -60,6 +63,23 @@ describe('briefsRepo', () => {
     await briefsRepo(db).create(wsA, { title: 't', body: 'b' });
 
     expect(calls).toContainEqual(['insert', { workspace_id: wsA, title: 't', body: 'b' }]);
+  });
+
+  it('maps an uploaded brief\'s source file', async () => {
+    const { db } = fakeDb([{ data: { ...row, source_name: 'brief.pdf', source_mime: 'application/pdf', source_size: 1234 }, error: null }]);
+
+    expect((await briefsRepo(db).get(wsA, id))?.source).toEqual({ name: 'brief.pdf', mime: 'application/pdf', size: 1234 });
+  });
+
+  it('creates an uploaded brief under the id its original was stored at', async () => {
+    const { db, calls } = fakeDb([{ data: row, error: null }]);
+
+    await briefsRepo(db).create(wsA, { title: 't', body: 'b' }, { id, source: { name: 'brief.pdf', mime: 'application/pdf', size: 1234 } });
+
+    expect(calls).toContainEqual([
+      'insert',
+      { workspace_id: wsA, title: 't', body: 'b', id, source_name: 'brief.pdf', source_mime: 'application/pdf', source_size: 1234 },
+    ]);
   });
 
   it.each([

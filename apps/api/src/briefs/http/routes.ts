@@ -5,11 +5,14 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
 import { briefPermissions } from '../domain/permissions';
+import { sourcePath } from '../domain/source-file';
 import type { BriefsRepo } from '../infra/briefs-repo';
+import type { SourceStorage } from '../infra/source-storage';
 
 export type BriefsRoutesOptions = {
   identityFor: (accessToken: string) => IdentityRepo;
   briefsFor: (accessToken: string) => BriefsRepo;
+  sourcesFor: (accessToken: string) => SourceStorage;
 };
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'not found' });
@@ -19,7 +22,7 @@ const errors = { 403: ApiErrorBody, 404: ApiErrorBody, 409: ApiErrorBody };
 
 // The caller's role comes from their membership (RLS-filtered): not a member and no such workspace both 404.
 // Reads fetch the role and the data in parallel; writes need the role first to refuse with a clear 403.
-export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (app, { identityFor, briefsFor }) => {
+export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (app, { identityFor, briefsFor, sourcesFor }) => {
   const repos = (token: string) => ({ identity: identityFor(token), briefs: briefsFor(token) });
 
   app.get('/workspaces/:wsId/briefs', { schema: { params: WorkspaceParams, response: { 200: BriefList, ...errors } } }, async (req, reply) => {
@@ -81,6 +84,11 @@ export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (a
     if (!ws) return notFound(reply);
     if (!briefPermissions(ws.role).delete) return forbidden(reply);
     const removed = await briefs.remove(ws.id, req.params.briefId);
-    return removed ? reply.code(204).send(null) : notFound(reply);
+    if (!removed) return notFound(reply);
+    // The row is gone, so its original is unreachable; remove it too (best effort: an orphan holds no access).
+    await sourcesFor(requireAuth(req).token)
+      .remove(sourcePath(ws.id, req.params.briefId))
+      .catch((err: unknown) => req.log.warn({ err }, 'original not removed after brief delete'));
+    return reply.code(204).send(null);
   });
 };

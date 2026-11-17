@@ -6,6 +6,9 @@ import { identityRepo, type IdentityRepo } from './identity/infra/identity-repo'
 import { identityRoutes } from './identity/http/routes';
 import { briefsRepo, type BriefsRepo } from './briefs/infra/briefs-repo';
 import { briefsRoutes } from './briefs/http/routes';
+import { sourceRoutes } from './briefs/http/source-routes';
+import { createTextExtractor, type TextExtractor } from './briefs/infra/extract-text';
+import { sourceStorage, type SourceStorage } from './briefs/infra/source-storage';
 import { oktaJwks, registerAuth } from './platform/auth';
 import type { Config } from './platform/config';
 import { userClientFactory } from './platform/supabase';
@@ -23,6 +26,8 @@ export type AppDeps = {
   jwks?: JWTVerifyGetKey;
   repoFor?: (accessToken: string) => IdentityRepo;
   briefsFor?: (accessToken: string) => BriefsRepo;
+  sourcesFor?: (accessToken: string) => SourceStorage;
+  extract?: TextExtractor;
 };
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -48,10 +53,12 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
   const userClient = userClientFactory(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY);
   const repoFor = deps.repoFor ?? ((token: string) => identityRepo(userClient(token)));
   const briefsFor = deps.briefsFor ?? ((token: string) => briefsRepo(userClient(token)));
+  const sourcesFor = deps.sourcesFor ?? ((token: string) => sourceStorage(userClient(token)));
 
   app.register(healthRoutes, { prefix: '/api', version: config.APP_VERSION, commit: config.GIT_SHA });
   app.register(identityRoutes, { prefix: '/api', repoFor });
-  app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor });
+  app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor });
+  app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor() });
 
   return app;
 }
