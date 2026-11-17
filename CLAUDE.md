@@ -24,7 +24,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - Do not edit `.claude/settings.json` or `scripts/hooks/` to loosen the checks.
 
 ## Verify
-`bun run check` (Nx: lint, typecheck, test, build for every project; offline, a few seconds) before reporting done. A Stop hook enforces it. CI also builds the API image, boots it and hits `/api/health`, and runs gitleaks. The real Okta tenant and LLM are only called by hand.
+`bun run check` (file-size limit, then Nx: lint, typecheck, test, build for every project; offline, a few seconds) before reporting done. A Stop hook enforces it. CI also builds the API image, boots it and hits `/api/health`, and runs gitleaks. The real Okta tenant and LLM are only called by hand.
 
 ## Agents
 - Lead: the main session plans, edits, and runs checks.
@@ -33,3 +33,14 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - Repo-wide searches: the built-in Explore agent with `model: haiku`.
 - Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff.
 - UI polish: the `unslop` skill.
+
+## Loops
+Pick the loop by what you hand off. Every loop needs an exit; never start one without it.
+- **Turn-based (the check)**: the default. The Stop hook runs `bun run check` and blocks at most 3 times, then you report the failure. Add `reviewer` on the diff and `advisor` per the rules above. Exit: check green, or 3 blocked stops and a report.
+- **Goal-based (the stop condition)**: `/goal "<command> exits 0, or stop after N tries"` when done is a command result, never an opinion. Keep N ≤ 3 while the Stop hook's 3-block cap applies. Exit: condition met, N reached, or `/goal clear`. Recipes (add each script in the PR that first needs it):
+  - Domain and application code tested: `scripts/untested.sh` prints nothing (every non-test file in `*/domain` and `*/application` has a sibling test). From Phase 1.
+  - RLS covered: `supabase test db` exits 0 and `scripts/rls-coverage.sh` prints nothing (every table with `workspace_id` has a cross-tenant pgTAP test). From Phase 1; `advisor` still reviews before done.
+  - Web quality: Lighthouse JSON of `vite preview` at 400px wide shows performance and accessibility ≥ 0.90 (checked with `jq`). Once real UI exists.
+  - Smoke flow: `bunx playwright test` exits 0 at 400px and 1280px. Once real UI exists; shares the visual-check Playwright config.
+- **Time-based (the trigger)**: GitHub Actions cron for anything a command answers (no tokens); `/schedule` only when the run needs judgement. Runs report, never change code. `/loop` is in-session only, e.g. watching CI on a PR. Exit: one report per run; `/loop` stops on a stated outcome.
+- **Proactive (the prompt)**: Dependabot PRs, gated by CI, merged by a human. Nothing merges on its own and nothing loosens a check.
