@@ -1,5 +1,7 @@
 import {
   BriefList,
+  BriefReviewResponse,
+  type ReviewEdit,
   BriefResponse,
   HealthResponse,
   Me,
@@ -96,3 +98,9 @@ export const uploadBrief = async (wsId: string, file: File, title?: string) => {
 // The original comes back as bytes, not JSON, so it skips the contract parsing; the token stays in the header.
 export const downloadBriefSource = async (wsId: string, briefId: string): Promise<Blob> =>
   (await request('GET', `${brief(wsId, briefId)}/source`)).blob();
+
+export const fetchReview = (wsId: string, briefId: string) => getJson(`${brief(wsId, briefId)}/review`, BriefReviewResponse);
+// Waits for the model (up to ~50 s); the caller shows progress and keeps the button disabled meanwhile.
+export const generateReview = async (wsId: string, briefId: string) =>
+  BriefReviewResponse.parse(await (await request('POST', `${brief(wsId, briefId)}/review`)).json());
+export const saveReview = (wsId: string, briefId: string, edit: ReviewEdit) => sendJson('PUT', `${brief(wsId, briefId)}/review`, edit, BriefReviewResponse);

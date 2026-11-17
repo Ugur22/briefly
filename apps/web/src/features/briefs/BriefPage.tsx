@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError, deleteBrief, fetchBrief, isNotFound, updateBrief } from '../../lib/api';
 import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
+import { ReviewPanel } from './ReviewPanel';
 import { SourceDownload } from './SourceDownload';
 
 function saveError(err: unknown) {
@@ -36,6 +37,8 @@ export function BriefPage() {
     onSuccess: async (res) => {
       queryClient.setQueryData(queryKeys.brief(wsId, briefId), res);
       await queryClient.invalidateQueries({ queryKey: queryKeys.briefs(wsId), exact: true });
+      // New text makes the review outdated; refetch so the panel says so.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.review(wsId, briefId), exact: true });
       setEditingFrom(null);
     },
   });
@@ -124,6 +127,7 @@ export function BriefPage() {
       {remove.error && <p role="alert">Could not delete this brief.</p>}
       {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
       <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{brief.body}</pre>
+      <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
     </>
   );
 }

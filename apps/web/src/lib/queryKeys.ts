@@ -7,4 +7,5 @@ export const queryKeys = {
   workspace: (wsId: string) => ['ws', wsId] as const,
   briefs: (wsId: string) => ['ws', wsId, 'briefs'] as const,
   brief: (wsId: string, briefId: string) => ['ws', wsId, 'briefs', briefId] as const,
+  review: (wsId: string, briefId: string) => ['ws', wsId, 'briefs', briefId, 'review'] as const,
 };
