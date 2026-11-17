@@ -1,0 +1,137 @@
+import { BriefList, BriefResponse, BriefSummary, type Brief, type Workspace, type WorkspaceRole } from '@briefly/contracts';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { buildApp } from '../../app';
+import type { IdentityRepo } from '../../identity/infra/identity-repo';
+import { loadConfig } from '../../platform/config';
+import { signToken, testEnv, testJwks } from '../../test/fixtures';
+import type { BriefsRepo, UpdateResult } from '../infra/briefs-repo';
+
+const wsA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const wsB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const briefId = 'b1ef0000-0000-4000-8000-000000000001';
+const brief: Brief = {
+  id: briefId,
+  workspaceId: wsA,
+  title: 'Spring launch',
+  status: 'draft',
+  version: 1,
+  body: 'Confidential client plan',
+  updatedAt: '2026-11-18T09:00:00.000Z',
+  createdAt: '2026-11-18T09:00:00.000Z',
+};
+
+// The caller is a member of workspace A only, with whatever role the test sets.
+let role: WorkspaceRole = 'editor';
+let updateResult: UpdateResult = { kind: 'ok', brief: { ...brief, version: 2 } };
+const briefs = {
+  list: vi.fn(async (ws: string) => (ws === wsA ? [brief] : [])),
+  get: vi.fn(async (ws: string, id: string) => (ws === wsA && id === briefId ? brief : null)),
+  create: vi.fn(async () => brief),
+  update: vi.fn(async () => updateResult),
+  remove: vi.fn(async (ws: string, id: string) => ws === wsA && id === briefId),
+} satisfies BriefsRepo;
+const identity = (): IdentityRepo => ({
+  provisionMe: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'a@test.dev' }),
+  listWorkspaces: async () => [{ id: wsA, name: 'A', role }],
+  findWorkspace: async (id): Promise<Workspace | null> => (id === wsA ? { id: wsA, name: 'A', role } : null),
+});
+
+describe('briefs routes', () => {
+  const app = buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs });
+  afterAll(() => app.close());
+
+  const call = async (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: unknown) =>
+    app.inject({ method, url, payload: payload as object, headers: { authorization: `Bearer ${await signToken()}` } });
+
+  it('lists briefs with what the caller may do', async () => {
+    role = 'approver';
+    const res = await call('GET', `/api/workspaces/${wsA}/briefs`);
+
+    // The response schema strips the body: listing never ships brief text.
+    expect(BriefList.parse(res.json())).toEqual({ briefs: [BriefSummary.parse(brief)], permissions: { create: false } });
+    expect(res.body).not.toContain(brief.body);
+  });
+
+  it('answers 404 for a workspace the caller is not in', async () => {
+    for (const [method, url] of [
+      ['GET', `/api/workspaces/${wsB}/briefs`],
+      ['GET', `/api/workspaces/${wsB}/briefs/${briefId}`],
+      ['DELETE', `/api/workspaces/${wsB}/briefs/${briefId}`],
+    ] as const) {
+      role = 'admin';
+      expect((await call(method, url)).statusCode, `${method} ${url}`).toBe(404);
+    }
+  });
+
+  it('answers 404 for a brief that belongs to another workspace, even via a workspace the caller is in', async () => {
+    const res = await call('GET', `/api/workspaces/${wsA}/briefs/b1ef0000-0000-4000-8000-0000000000ff`);
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('lets an editor create, scoped to the workspace in the URL', async () => {
+    role = 'editor';
+    const res = await call('POST', `/api/workspaces/${wsA}/briefs`, { title: '  Spring launch ', body: 'x' });
+
+    expect(res.statusCode).toBe(201);
+    expect(BriefResponse.parse(res.json()).permissions).toEqual({ edit: true, delete: false });
+    expect(briefs.create).toHaveBeenLastCalledWith(wsA, { title: 'Spring launch', body: 'x' });
+  });
+
+  it.each([
+    ['approver', 'POST', `/api/workspaces/${wsA}/briefs`, { title: 't', body: '' }],
+    ['approver', 'PUT', `/api/workspaces/${wsA}/briefs/${briefId}`, { title: 't', body: '', version: 1 }],
+    ['editor', 'DELETE', `/api/workspaces/${wsA}/briefs/${briefId}`, undefined],
+  ] as const)('refuses a%s %s with 403 before touching the data', async (r, method, url, payload) => {
+    role = r;
+    briefs.create.mockClear();
+    briefs.update.mockClear();
+    briefs.remove.mockClear();
+
+    const res = await call(method, url, payload);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toEqual({ error: 'forbidden' });
+    expect(briefs.create).not.toHaveBeenCalled();
+    expect(briefs.update).not.toHaveBeenCalled();
+    expect(briefs.remove).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ kind: 'ok', brief: { ...brief, version: 2 } }, 200],
+    [{ kind: 'conflict' }, 409],
+    [{ kind: 'not_found' }, 404],
+    [{ kind: 'forbidden' }, 403],
+  ] as const)('maps an update result %j to %i', async (result, status) => {
+    role = 'editor';
+    updateResult = result;
+
+    const res = await call('PUT', `/api/workspaces/${wsA}/briefs/${briefId}`, { title: 't', body: 'b', version: 1 });
+
+    expect(res.statusCode).toBe(status);
+  });
+
+  it('lets an admin delete', async () => {
+    role = 'admin';
+
+    expect((await call('DELETE', `/api/workspaces/${wsA}/briefs/${briefId}`)).statusCode).toBe(204);
+  });
+
+  it('never echoes brief text back in a validation error', async () => {
+    role = 'editor';
+    const secret = 'Confidential launch date 2027-03-01';
+
+    const tooLong = await call('POST', `/api/workspaces/${wsA}/briefs`, { title: secret.repeat(10), body: secret });
+    const badJson = await app.inject({
+      method: 'POST',
+      url: `/api/workspaces/${wsA}/briefs`,
+      payload: `{"title":"${secret}", body`,
+      headers: { authorization: `Bearer ${await signToken()}`, 'content-type': 'application/json' },
+    });
+
+    expect(tooLong.statusCode).toBe(400);
+    expect(badJson.statusCode).toBe(400);
+    expect(tooLong.body).not.toContain('Confidential');
+    expect(badJson.body).not.toContain('Confidential');
+  });
+});

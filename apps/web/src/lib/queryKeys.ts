@@ -5,4 +5,6 @@ export const queryKeys = {
   me: ['me'] as const,
   workspaces: ['workspaces'] as const,
   workspace: (wsId: string) => ['ws', wsId] as const,
+  briefs: (wsId: string) => ['ws', wsId, 'briefs'] as const,
+  brief: (wsId: string, briefId: string) => ['ws', wsId, 'briefs', briefId] as const,
 };

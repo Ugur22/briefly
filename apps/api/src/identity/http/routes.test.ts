@@ -3,7 +3,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { loadConfig } from '../../platform/config';
 import { signToken, testEnv, testJwks } from '../../test/fixtures';
-import { DbError, type IdentityRepo } from '../infra/identity-repo';
+import { DbError } from '../../platform/db-error';
+import type { IdentityRepo } from '../infra/identity-repo';
 
 const acme: Workspace = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Acme', role: 'admin' };
 const globexId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';

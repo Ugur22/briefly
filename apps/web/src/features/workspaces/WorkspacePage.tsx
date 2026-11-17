@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
-import { ApiError, fetchWorkspace } from '../../lib/api';
+import { fetchWorkspace, isNotFound } from '../../lib/api';
 import { queryKeys } from '../../lib/queryKeys';
-
-// 400 is a malformed id in the URL; to the user that is the same as a workspace that doesn't exist.
-const isNotFound = (err: unknown) => err instanceof ApiError && (err.status === 404 || err.status === 400);
+import { BriefList } from '../briefs/BriefList';
 
 export function WorkspacePage() {
   const { wsId = '' } = useParams();
@@ -31,6 +29,7 @@ export function WorkspacePage() {
       </p>
       <h1>{data.name}</h1>
       <p>Your role: {data.role}</p>
+      <BriefList wsId={wsId} />
     </>
   );
 }

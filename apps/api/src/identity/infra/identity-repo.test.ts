@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { DbError, identityRepo } from './identity-repo';
+import { DbError } from '../../platform/db-error';
+import { identityRepo } from './identity-repo';
 
 type Result = { data: unknown; error: { code?: string } | null };
 
