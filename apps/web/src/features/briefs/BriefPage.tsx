@@ -6,6 +6,7 @@ import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
 import { ReviewPanel } from './ReviewPanel';
 import { SourceDownload } from './SourceDownload';
+import { STATUS_TEXT, WorkflowPanel } from './WorkflowPanel';
 
 function saveError(err: unknown) {
   if (err instanceof ApiError && err.status === 409) return 'Someone else changed this brief. Copy your text, then reload to see their version.';
@@ -99,7 +100,7 @@ export function BriefPage() {
       {back}
       <h1>{brief.title}</h1>
       <p>
-        {brief.status} · version {brief.version}
+        {STATUS_TEXT[brief.status]} · version {brief.version}
       </p>
       <p>
         {permissions.edit && (
@@ -128,6 +129,7 @@ export function BriefPage() {
       {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
       <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{brief.body}</pre>
       <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
+      <WorkflowPanel wsId={wsId} brief={brief} permissions={permissions} />
     </>
   );
 }

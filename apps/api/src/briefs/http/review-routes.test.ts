@@ -20,6 +20,10 @@ const brief: Brief = {
   updatedAt: '2026-11-18T09:00:00.000Z',
   createdAt: '2026-11-18T09:00:00.000Z',
   source: null,
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
 const review = {
   summary: 'ok',
@@ -49,7 +53,7 @@ const reviews = {
   }),
   saveEdit: vi.fn(async () => true),
 } satisfies ReviewsRepo;
-const briefs = { list: vi.fn(), get: vi.fn(async (ws: string, id: string) => (ws === wsA && id === briefId ? brief : null)), create: vi.fn(), update: vi.fn(), remove: vi.fn() } satisfies BriefsRepo;
+const briefs = { list: vi.fn(), get: vi.fn(async (ws: string, id: string) => (ws === wsA && id === briefId ? brief : null)), create: vi.fn(), update: vi.fn(), remove: vi.fn(), submit: vi.fn(), decide: vi.fn() } satisfies BriefsRepo;
 const identity = (): IdentityRepo => ({ provisionMe: vi.fn(), listWorkspaces: vi.fn(), findWorkspace: async (id) => (id === wsA ? { id: wsA, name: 'A', role } : null) });
 const generate = vi.fn<ReviewGenerator>(async () => ({ ok: true, review: { ...review, areas: review.areas as never }, model: 'claude-opus-5-5' }));
 

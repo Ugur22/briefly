@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- The migration revokes default EXECUTE on new functions, which would include pgTAP's own.
 grant execute on all functions in schema extensions to anon, authenticated;
-select plan(35);
+select plan(37);
 
 select table_privs_are('public', 'users', 'anon', array[]::text[], 'anon has no access to users');
 select table_privs_are('public', 'workspaces', 'anon', array[]::text[], 'anon has no access to workspaces');
@@ -28,7 +28,6 @@ select column_privs_are('public', 'briefs', 'workspace_id', 'authenticated', arr
 select column_privs_are('public', 'briefs', 'title', 'authenticated', array['SELECT', 'INSERT', 'UPDATE'], 'title is writable');
 select column_privs_are('public', 'briefs', 'body', 'authenticated', array['SELECT', 'INSERT', 'UPDATE'], 'body is writable');
 select column_privs_are('public', 'briefs', 'created_by', 'authenticated', array['SELECT'], 'created_by is set by the database');
-select column_privs_are('public', 'briefs', 'status', 'authenticated', array['SELECT'], 'status is not writable yet');
 select column_privs_are('public', 'briefs', 'version', 'authenticated', array['SELECT'], 'version is set by the database');
 select column_privs_are('public', 'briefs', 'id', 'authenticated', array['SELECT', 'INSERT'], 'the API chooses a new brief id, which is never changed');
 select column_privs_are('public', 'briefs', 'source_name', 'authenticated', array['SELECT', 'INSERT'], 'source_name is set once');
@@ -39,6 +38,9 @@ select table_privs_are('public', 'brief_reviews', 'authenticated', array['SELECT
 select column_privs_are('public', 'brief_reviews', 'result', 'authenticated', array['SELECT', 'UPDATE'], 'the result is written by update');
 select column_privs_are('public', 'brief_reviews', 'brief_id', 'authenticated', array['SELECT', 'INSERT'], 'a review is attached once');
 select column_privs_are('public', 'brief_reviews', 'created_by', 'authenticated', array['SELECT'], 'created_by is set by the database');
+select column_privs_are('public', 'briefs', 'status', 'authenticated', array['SELECT', 'UPDATE'], 'status is updated through the workflow trigger');
+select column_privs_are('public', 'briefs', 'submitted_by', 'authenticated', array['SELECT'], 'who submitted is set by the database');
+select function_privs_are('private', 'briefs_workflow', array[]::name[], 'authenticated', array[]::text[], 'the workflow trigger is not callable');
 select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'anon', array[]::text[], 'anon cannot call workspace_ids_with_role');
 select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'authenticated', array['EXECUTE'], 'authenticated can call workspace_ids_with_role (policies need it)');
 

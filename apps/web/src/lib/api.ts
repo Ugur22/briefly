@@ -1,6 +1,7 @@
 import {
   BriefList,
   BriefReviewResponse,
+  type Decision,
   type ReviewEdit,
   BriefResponse,
   HealthResponse,
@@ -104,3 +105,6 @@ export const fetchReview = (wsId: string, briefId: string) => getJson(`${brief(w
 export const generateReview = async (wsId: string, briefId: string) =>
   BriefReviewResponse.parse(await (await request('POST', `${brief(wsId, briefId)}/review`)).json());
 export const saveReview = (wsId: string, briefId: string, edit: ReviewEdit) => sendJson('PUT', `${brief(wsId, briefId)}/review`, edit, BriefReviewResponse);
+
+export const submitBrief = (wsId: string, briefId: string, version: number) => sendJson('POST', `${brief(wsId, briefId)}/submit`, { version }, BriefResponse);
+export const decideBrief = (wsId: string, briefId: string, decision: Decision) => sendJson('POST', `${brief(wsId, briefId)}/decision`, decision, BriefResponse);

@@ -26,6 +26,10 @@ const stored: Brief = {
   updatedAt: '2026-11-18T09:00:00.000Z',
   createdAt: '2026-11-18T09:00:00.000Z',
   source: { name: 'Spring launch brief.pdf', mime: 'application/pdf', size: pdfBytes.length },
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
 
 let role: WorkspaceRole = 'editor';
@@ -36,6 +40,8 @@ const briefs = {
   create: vi.fn<BriefsRepo['create']>(async () => stored),
   update: vi.fn(),
   remove: vi.fn(),
+  submit: vi.fn(),
+  decide: vi.fn(),
 } satisfies BriefsRepo;
 const sources = {
   put: vi.fn<SourceStorage['put']>(async () => 'ok'),

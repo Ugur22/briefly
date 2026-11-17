@@ -1,4 +1,4 @@
-import { Brief, BriefSummary, type BriefCreate, type BriefSource, type BriefUpdate } from '@briefly/contracts';
+import { Brief, BriefSummary, type BriefCreate, type BriefSource, type BriefUpdate, type Decision } from '@briefly/contracts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { DbError } from '../../platform/db-error';
@@ -9,6 +9,9 @@ export type UpdateResult =
   | { kind: 'conflict' }
   | { kind: 'forbidden' };
 
+// Zero rows from a workflow update, told apart by a re-read. Refusals by the trigger arrive as a DbError instead.
+export type WorkflowResult = { kind: 'ok'; brief: Brief } | { kind: 'not_found' } | { kind: 'conflict' };
+
 export type BriefsRepo = {
   list(wsId: string): Promise<BriefSummary[]>;
   get(wsId: string, id: string): Promise<Brief | null>;
@@ -16,10 +19,12 @@ export type BriefsRepo = {
   create(wsId: string, input: BriefCreate, upload?: { id: string; source: BriefSource }): Promise<Brief>;
   update(wsId: string, id: string, input: BriefUpdate): Promise<UpdateResult>;
   remove(wsId: string, id: string): Promise<boolean>;
+  submit(wsId: string, id: string, version: number): Promise<WorkflowResult>;
+  decide(wsId: string, id: string, decision: Decision): Promise<WorkflowResult>;
 };
 
 const SUMMARY_COLUMNS = 'id, workspace_id, title, status, version, updated_at';
-const COLUMNS = `${SUMMARY_COLUMNS}, body, created_at, source_name, source_mime, source_size`;
+const COLUMNS = `${SUMMARY_COLUMNS}, body, created_at, source_name, source_mime, source_size, submitted_by, submitted_at, decided_at, decision_comment`;
 
 const SummaryRow = z.object({
   id: z.string(),
@@ -35,6 +40,10 @@ const Row = SummaryRow.extend({
   source_name: z.string().nullable(),
   source_mime: z.string().nullable(),
   source_size: z.number().nullable(),
+  submitted_by: z.string().nullable(),
+  submitted_at: z.string().nullable(),
+  decided_at: z.string().nullable(),
+  decision_comment: z.string().nullable(),
 });
 
 // PostgREST returns Postgres timestamps without the "T"/offset shape the contract pins; normalise to ISO.
@@ -49,6 +58,10 @@ const toBrief = (r: z.infer<typeof Row>): Brief =>
     body: r.body,
     createdAt: iso(r.created_at),
     source: r.source_name === null ? null : { name: r.source_name, mime: r.source_mime, size: r.source_size },
+    submittedBy: r.submitted_by,
+    submittedAt: r.submitted_at === null ? null : iso(r.submitted_at),
+    decidedAt: r.decided_at === null ? null : iso(r.decided_at),
+    decisionComment: r.decision_comment,
   });
 
 // Every call runs as the caller and is scoped to the workspace in the URL as well as by RLS: someone in two
@@ -109,6 +122,36 @@ export function briefsRepo(db: SupabaseClient): BriefsRepo {
       if (current === null) return { kind: 'not_found' };
       if (current !== input.version) return { kind: 'conflict' };
       return { kind: 'forbidden' };
+    },
+
+    // Only the status is sent; the trigger checks the transition, the role, the review and who's asking, and
+    // records who submitted. `version` makes sure what was reviewed is what gets submitted.
+    async submit(wsId, id, version) {
+      const { data, error } = await db
+        .from('briefs')
+        .update({ status: 'in_review' })
+        .eq('workspace_id', wsId)
+        .eq('id', id)
+        .eq('version', version)
+        .select(COLUMNS);
+      if (error) throw new DbError('briefs.submit', error.code);
+      const rows = z.array(Row).parse(data);
+      if (rows[0]) return { kind: 'ok', brief: toBrief(rows[0]) };
+      return (await readVersion(wsId, id)) === null ? { kind: 'not_found' } : { kind: 'conflict' };
+    },
+
+    async decide(wsId, id, decision) {
+      const { data, error } = await db
+        .from('briefs')
+        .update({ status: decision.decision === 'approve' ? 'approved' : 'changes_requested', decision_comment: decision.comment ?? null })
+        .eq('workspace_id', wsId)
+        .eq('id', id)
+        .eq('status', 'in_review')
+        .select(COLUMNS);
+      if (error) throw new DbError('briefs.decide', error.code);
+      const rows = z.array(Row).parse(data);
+      if (rows[0]) return { kind: 'ok', brief: toBrief(rows[0]) };
+      return (await readVersion(wsId, id)) === null ? { kind: 'not_found' } : { kind: 'conflict' };
     },
 
     async remove(wsId, id) {

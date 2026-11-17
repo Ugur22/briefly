@@ -18,6 +18,10 @@ const brief = {
   body: 'Five thousand test rides in April.',
   createdAt: '2026-11-18T08:00:00.000Z',
   source: null as null | { name: string; mime: string; size: number },
+  submittedBy: null,
+  submittedAt: null,
+  decidedAt: null,
+  decisionComment: null,
 };
 const workspace = { id: wsId, name: 'Acme Rotterdam', role: 'editor' };
 
@@ -86,8 +90,8 @@ describe('brief list', () => {
 describe('creating a brief', () => {
   it('posts the form and opens the new brief', async () => {
     const calls = serve({
-      [`POST ${api}/briefs`]: { status: 201, json: { brief, permissions: { edit: true, delete: false } } },
-      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false } } },
+      [`POST ${api}/briefs`]: { status: 201, json: { brief, permissions: { edit: true, delete: false, submit: true, decide: false } } },
+      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false, submit: true, decide: false } } },
     });
     renderAt(`/w/${wsId}/briefs/new`);
 
@@ -103,8 +107,8 @@ describe('creating a brief', () => {
 describe('editing a brief', () => {
   it('saves with the version it started from', async () => {
     const calls = serve({
-      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false } } },
-      [`PUT ${api}/briefs/${briefId}`]: { json: { brief: { ...brief, title: 'Spring launch v2', version: 4 }, permissions: { edit: true, delete: false } } },
+      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false, submit: true, decide: false } } },
+      [`PUT ${api}/briefs/${briefId}`]: { json: { brief: { ...brief, title: 'Spring launch v2', version: 4 }, permissions: { edit: true, delete: false, submit: true, decide: false } } },
     });
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
@@ -118,14 +122,14 @@ describe('editing a brief', () => {
 
   it('keeps the version it started from even if a background refetch brings a newer one', async () => {
     const calls = serve({
-      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false } } },
+      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false, submit: true, decide: false } } },
       [`PUT ${api}/briefs/${briefId}`]: { status: 409, json: { error: 'conflict' } },
     });
     const client = renderAt(`/w/${wsId}/briefs/${briefId}`);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     // Someone else saved v4 and a refetch (window focus, staleTime) put it in the cache mid-edit.
-    client.setQueryData(['ws', wsId, 'briefs', briefId], { brief: { ...brief, version: 4 }, permissions: { edit: true, delete: false } });
+    client.setQueryData(['ws', wsId, 'briefs', briefId], { brief: { ...brief, version: 4 }, permissions: { edit: true, delete: false, submit: true, decide: false } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/Someone else changed this brief/);
@@ -134,7 +138,7 @@ describe('editing a brief', () => {
 
   it('explains a conflict and keeps what the user typed', async () => {
     serve({
-      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false } } },
+      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: false, submit: true, decide: false } } },
       [`PUT ${api}/briefs/${briefId}`]: { status: 409, json: { error: 'conflict' } },
     });
     renderAt(`/w/${wsId}/briefs/${briefId}`);
@@ -148,7 +152,7 @@ describe('editing a brief', () => {
   });
 
   it('shows no edit or delete controls to a read-only role', async () => {
-    serve({ [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: false, delete: false } } } });
+    serve({ [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: false, delete: false, submit: false, decide: false } } } });
 
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
@@ -161,7 +165,7 @@ describe('editing a brief', () => {
 describe('deleting a brief', () => {
   it('asks first, then deletes and returns to the list', async () => {
     const calls = serve({
-      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: true } } },
+      [`GET ${api}/briefs/${briefId}`]: { json: { brief, permissions: { edit: true, delete: true, submit: true, decide: false } } },
       [`DELETE ${api}/briefs/${briefId}`]: { status: 204 },
       [`GET ${api}`]: { json: { ...workspace, role: 'admin' } },
       [`GET ${api}/briefs`]: { json: { briefs: [], permissions: { create: true } } },

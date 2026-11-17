@@ -1,4 +1,4 @@
-import { AreaStatus, REVIEW_AREAS, REVIEW_LIMITS, Review, ReviewFailure, type BriefReview, type BriefStatus } from '@briefly/contracts';
+import { AreaStatus, REVIEW_AREAS, REVIEW_LIMITS, Review, ReviewFailure, type BriefReview } from '@briefly/contracts';
 import { z } from 'zod';
 
 // What a generator is asked to produce. Structured output enforces required keys and enums but not lengths,
@@ -32,7 +32,7 @@ export function clampReview(raw: ModelReview): Review {
 }
 
 // Reviews (and their edits) are allowed while the brief can still change; the database enforces the same.
-export const isEditableStatus = (status: BriefStatus) => status === 'draft' || status === ('changes_requested' as BriefStatus);
+export { isEditableStatus } from './workflow';
 
 // A generation that has run this long without finishing is treated as dead (the API gives up after 50 s).
 export const PENDING_STALE_MS = 2 * 60 * 1000;

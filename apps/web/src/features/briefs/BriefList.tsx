@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { fetchBriefs } from '../../lib/api';
 import { queryKeys } from '../../lib/queryKeys';
+import { STATUS_TEXT } from './WorkflowPanel';
 
 const updated = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -21,7 +22,7 @@ export function BriefList({ wsId }: { wsId: string }) {
         <ul>
           {data.briefs.map((b) => (
             <li key={b.id}>
-              <Link to={`/w/${wsId}/briefs/${b.id}`}>{b.title}</Link> · {b.status} · updated {updated.format(new Date(b.updatedAt))}
+              <Link to={`/w/${wsId}/briefs/${b.id}`}>{b.title}</Link> · {STATUS_TEXT[b.status]} · updated {updated.format(new Date(b.updatedAt))}
             </li>
           ))}
         </ul>

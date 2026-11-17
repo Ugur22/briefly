@@ -5,8 +5,7 @@ import { z } from 'zod';
 export const BRIEF_TITLE_MAX = 200;
 export const BRIEF_BODY_MAX = 50_000;
 
-// Widened in Phase 4 (in_review, approved, changes_requested).
-export const BriefStatus = z.enum(['draft']);
+export const BriefStatus = z.enum(['draft', 'in_review', 'approved', 'changes_requested']);
 export type BriefStatus = z.infer<typeof BriefStatus>;
 
 export const BriefSummary = z.object({
@@ -38,12 +37,20 @@ export const Brief = BriefSummary.extend({
   body: z.string(),
   createdAt: z.iso.datetime({ offset: true }),
   source: BriefSource.nullable(),
+  // The workflow, as recorded by the database. submittedBy is a user id so the web can tell "you submitted this".
+  submittedBy: z.uuid().nullable(),
+  submittedAt: z.iso.datetime({ offset: true }).nullable(),
+  decidedAt: z.iso.datetime({ offset: true }).nullable(),
+  decisionComment: z.string().nullable(),
 });
 export type Brief = z.infer<typeof Brief>;
 
 export const BriefPermissions = z.object({
   edit: z.boolean(),
   delete: z.boolean(),
+  submit: z.boolean(),
+  // Approve or send back. The database also refuses whoever submitted it; the web hides the buttons for them.
+  decide: z.boolean(),
 });
 export type BriefPermissions = z.infer<typeof BriefPermissions>;
 
@@ -82,3 +89,14 @@ export const BriefParams = z.object({
 export const UploadError = z.enum(['missing_file', 'too_large', 'unsupported_type', 'unreadable', 'no_text', 'too_long', 'busy']);
 export type UploadError = z.infer<typeof UploadError>;
 export const UploadErrorBody = z.object({ error: UploadError });
+
+export const Submit = z.object({ version: z.number().int().positive() });
+export type Submit = z.infer<typeof Submit>;
+
+export const Decision = z
+  .object({
+    decision: z.enum(['approve', 'request_changes']),
+    comment: z.string().trim().max(2000).optional(),
+  })
+  .refine((d) => d.decision === 'approve' || (d.comment ?? '') !== '', { message: 'say what needs to change', path: ['comment'] });
+export type Decision = z.infer<typeof Decision>;

@@ -1,10 +1,11 @@
-import { ApiErrorBody, BriefCreate, BriefList, BriefParams, BriefResponse, BriefUpdate, WorkspaceParams } from '@briefly/contracts';
+import { ApiErrorBody, BriefCreate, Decision, Submit, BriefList, BriefParams, BriefResponse, BriefUpdate, WorkspaceParams } from '@briefly/contracts';
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
 import { briefPermissions } from '../domain/permissions';
+import { briefActions } from '../domain/workflow';
 import { sourcePath } from '../domain/source-file';
 import type { BriefsRepo } from '../infra/briefs-repo';
 import type { SourceStorage } from '../infra/source-storage';
@@ -42,7 +43,7 @@ export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (a
       const can = briefPermissions(ws.role);
       if (!can.create) return forbidden(reply);
       const brief = await briefs.create(ws.id, req.body);
-      return reply.code(201).send({ brief, permissions: { edit: can.edit, delete: can.delete } });
+      return reply.code(201).send({ brief, permissions: briefActions(ws.role, brief.status) });
     },
   );
 
@@ -50,8 +51,7 @@ export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (a
     const { identity, briefs } = repos(requireAuth(req).token);
     const [ws, brief] = await Promise.all([identity.findWorkspace(req.params.wsId), briefs.get(req.params.wsId, req.params.briefId)]);
     if (!ws || !brief) return notFound(reply);
-    const can = briefPermissions(ws.role);
-    return { brief, permissions: { edit: can.edit, delete: can.delete } };
+    return { brief, permissions: briefActions(ws.role, brief.status) };
   });
 
   app.put(
@@ -61,13 +61,13 @@ export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (a
       const { identity, briefs } = repos(requireAuth(req).token);
       const ws = await identity.findWorkspace(req.params.wsId);
       if (!ws) return notFound(reply);
-      const can = briefPermissions(ws.role);
-      if (!can.edit) return forbidden(reply);
+      if (!briefPermissions(ws.role).edit) return forbidden(reply);
 
+      // A locked brief (in review, approved) is refused by the workflow trigger: 409 locked.
       const result = await briefs.update(ws.id, req.params.briefId, req.body);
       switch (result.kind) {
         case 'ok':
-          return { brief: result.brief, permissions: { edit: can.edit, delete: can.delete } };
+          return { brief: result.brief, permissions: briefActions(ws.role, result.brief.status) };
         case 'not_found':
           return notFound(reply);
         case 'conflict':
@@ -75,6 +75,40 @@ export const briefsRoutes: FastifyPluginAsyncZod<BriefsRoutesOptions> = async (a
         case 'forbidden':
           return forbidden(reply);
       }
+    },
+  );
+
+  // Submit and decide only send the new status; the workflow trigger checks role, transition, the current review
+  // and self-approval, and its refusals come back as specific errors (409 locked/no_current_review/…, 403 self_approval).
+  const workflowErrors = { ...errors, 422: ApiErrorBody };
+
+  app.post(
+    '/workspaces/:wsId/briefs/:briefId/submit',
+    { schema: { params: BriefParams, body: Submit, response: { 200: BriefResponse, ...workflowErrors } } },
+    async (req, reply) => {
+      const { identity, briefs } = repos(requireAuth(req).token);
+      const ws = await identity.findWorkspace(req.params.wsId);
+      if (!ws) return notFound(reply);
+      if (!briefPermissions(ws.role).edit) return forbidden(reply);
+      const result = await briefs.submit(ws.id, req.params.briefId, req.body.version);
+      if (result.kind === 'not_found') return notFound(reply);
+      if (result.kind === 'conflict') return reply.code(409).send({ error: 'conflict' });
+      return { brief: result.brief, permissions: briefActions(ws.role, result.brief.status) };
+    },
+  );
+
+  app.post(
+    '/workspaces/:wsId/briefs/:briefId/decision',
+    { schema: { params: BriefParams, body: Decision, response: { 200: BriefResponse, ...workflowErrors } } },
+    async (req, reply) => {
+      const { identity, briefs } = repos(requireAuth(req).token);
+      const ws = await identity.findWorkspace(req.params.wsId);
+      if (!ws) return notFound(reply);
+      if (ws.role !== 'approver' && ws.role !== 'admin') return forbidden(reply);
+      const result = await briefs.decide(ws.id, req.params.briefId, req.body);
+      if (result.kind === 'not_found') return notFound(reply);
+      if (result.kind === 'conflict') return reply.code(409).send({ error: 'not_in_review' });
+      return { brief: result.brief, permissions: briefActions(ws.role, result.brief.status) };
     },
   );
 
