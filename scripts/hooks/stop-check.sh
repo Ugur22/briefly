@@ -15,10 +15,13 @@ if [ -f "$stamp" ] && [ -z "$(find . \
 fi
 
 # Cap consecutive blocks so a check the agent can't fix never traps the session.
-counter="${TMPDIR:-/tmp}/briefly-stop-blocks"
+# Keyed by session so parallel sessions don't spend each other's tries.
+session=$(node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log((JSON.parse(s).session_id??"").replace(/[^A-Za-z0-9_-]/g,""))}catch{console.log("")}})')
+counter="${TMPDIR:-/tmp}/briefly-stop-blocks-${session:-default}"
 blocks=$(cat "$counter" 2>/dev/null || echo 0)
 
-if out=$(NX_NO_CLOUD=true bun run check 2>&1); then
+# No daemon: a sandboxed hook can't reach a daemon an earlier command started, and hangs on it.
+if out=$(NX_NO_CLOUD=true NX_DAEMON=false bun run check 2>&1); then
   rm -f "$counter"
   mkdir -p "$(dirname "$stamp")" && touch "$stamp"
   exit 0
