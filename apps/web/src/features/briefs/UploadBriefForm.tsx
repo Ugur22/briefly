@@ -1,4 +1,5 @@
 import { BRIEF_FILE_MAX_BYTES, BRIEF_TITLE_MAX } from '@briefly/contracts';
+import { FileUp } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../lib/api';
 
@@ -30,29 +31,34 @@ export function UploadBriefForm({ pending, error, onSubmit }: Props) {
   };
 
   return (
-    <form onSubmit={submit}>
-      {(tooLarge || error !== null) && <p role="alert">{tooLarge ? MESSAGES.too_large : uploadErrorMessage(error)}</p>}
-      <p>
-        <label>
-          File (PDF or Word, up to 10 MB)
-          <br />
+    <form onSubmit={submit} className="grid gap-5">
+      {(tooLarge || error !== null) && (
+        <p role="alert" className="alert">
+          {tooLarge ? MESSAGES.too_large : uploadErrorMessage(error)}
+        </p>
+      )}
+      <label className="label">
+        File (PDF or Word, up to 10 MB)
+        <span className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-strong bg-surface px-4 py-6 text-center font-normal text-ink-2 transition-colors duration-150 ease-out hover:border-accent">
+          <FileUp size={18} strokeWidth={1.5} className="text-muted" aria-hidden />
+          {file ? <span className="text-ink">{file.name}</span> : <span>Choose a file</span>}
           <input
             type="file"
+            className="sr-only"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
-        </label>
-      </p>
-      <p>
-        <label>
-          Title (optional, defaults to the file name)
-          <br />
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={BRIEF_TITLE_MAX} />
-        </label>
-      </p>
-      <button type="submit" disabled={pending || !file || tooLarge}>
-        {pending ? 'Reading file…' : 'Upload brief'}
-      </button>
+        </span>
+      </label>
+      <label className="label">
+        Title (optional, defaults to the file name)
+        <input className="input font-normal" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={BRIEF_TITLE_MAX} />
+      </label>
+      <div>
+        <button type="submit" className="btn btn-primary" disabled={pending || !file || tooLarge}>
+          {pending ? 'Reading file…' : 'Upload brief'}
+        </button>
+      </div>
     </form>
   );
 }

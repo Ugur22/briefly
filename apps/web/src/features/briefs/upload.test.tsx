@@ -111,7 +111,8 @@ describe('downloading the original', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
-    expect(await screen.findByText(/Original: Spring launch.pdf \(244 KB\)/)).toBeTruthy();
+    expect(await screen.findByText('Spring launch.pdf')).toBeTruthy();
+    expect(screen.getByText('244 KB')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Download' }));
 
     await waitFor(() => expect(click).toHaveBeenCalled());

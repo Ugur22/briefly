@@ -32,7 +32,7 @@ describe('workspaces', () => {
 
     renderAt('/');
 
-    const link = await screen.findByRole('link', { name: 'Acme Rotterdam' });
+    const link = await screen.findByRole('link', { name: /Acme Rotterdam/ });
     expect(link.getAttribute('href')).toBe(`/w/${acme.id}`);
   });
 
