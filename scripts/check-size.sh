@@ -1,13 +1,13 @@
 #!/bin/bash
 # Fails when a hand-written tracked file exceeds the 400-line limit from CLAUDE.md.
-# Lockfiles, migrations and generated files are exempt: nobody splits those by hand.
+# Lockfiles, migrations, the CLI-generated supabase/config.toml and generated files are exempt: nobody splits those by hand.
 set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
 limit=400
 over=$(git ls-files -co --exclude-standard \
-  | grep -Ev '(^|/)(bun\.lock|package-lock\.json)$|^supabase/migrations/|\.gen\.ts$|(^|/)dist/' \
+  | grep -Ev '(^|/)(bun\.lock|package-lock\.json)$|^supabase/migrations/|^supabase/config\.toml$|\.gen\.ts$|(^|/)dist/' \
   | while IFS= read -r f; do
       [ -f "$f" ] || continue
       n=$(wc -l < "$f" | tr -d ' ')
