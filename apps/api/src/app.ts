@@ -4,6 +4,8 @@ import type { JWTVerifyGetKey } from 'jose';
 import { healthRoutes } from './http/health';
 import { identityRepo, type IdentityRepo } from './identity/infra/identity-repo';
 import { identityRoutes } from './identity/http/routes';
+import { briefsRepo, type BriefsRepo } from './briefs/infra/briefs-repo';
+import { briefsRoutes } from './briefs/http/routes';
 import { oktaJwks, registerAuth } from './platform/auth';
 import type { Config } from './platform/config';
 import { userClientFactory } from './platform/supabase';
@@ -16,10 +18,11 @@ function loggerOptions(config: Config) {
   return { level: config.LOG_LEVEL };
 }
 
-// Seams for tests: a local key set instead of Okta's, and an in-memory repo instead of Supabase.
+// Seams for tests: a local key set instead of Okta's, and in-memory repos instead of Supabase.
 export type AppDeps = {
   jwks?: JWTVerifyGetKey;
   repoFor?: (accessToken: string) => IdentityRepo;
+  briefsFor?: (accessToken: string) => BriefsRepo;
 };
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -44,9 +47,11 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
 
   const userClient = userClientFactory(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY);
   const repoFor = deps.repoFor ?? ((token: string) => identityRepo(userClient(token)));
+  const briefsFor = deps.briefsFor ?? ((token: string) => briefsRepo(userClient(token)));
 
   app.register(healthRoutes, { prefix: '/api', version: config.APP_VERSION, commit: config.GIT_SHA });
   app.register(identityRoutes, { prefix: '/api', repoFor });
+  app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor });
 
   return app;
 }

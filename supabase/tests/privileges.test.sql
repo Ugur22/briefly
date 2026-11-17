@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- The migration revokes default EXECUTE on new functions, which would include pgTAP's own.
 grant execute on all functions in schema extensions to anon, authenticated;
-select plan(16);
+select plan(26);
 
 select table_privs_are('public', 'users', 'anon', array[]::text[], 'anon has no access to users');
 select table_privs_are('public', 'workspaces', 'anon', array[]::text[], 'anon has no access to workspaces');
@@ -21,9 +21,21 @@ select function_privs_are('private', 'trusted_claims', array[]::name[], 'anon', 
 select function_privs_are('private', 'current_user_id', array[]::name[], 'anon', array[]::text[], 'anon cannot call current_user_id');
 select function_privs_are('private', 'member_workspace_ids', array[]::name[], 'anon', array[]::text[], 'anon cannot call member_workspace_ids');
 
+-- briefs: whole-table read and delete, but only the editable columns can be written.
+select table_privs_are('public', 'briefs', 'anon', array[]::text[], 'anon has no access to briefs');
+select table_privs_are('public', 'briefs', 'authenticated', array['SELECT', 'DELETE'], 'authenticated has table-wide select and delete only');
+select column_privs_are('public', 'briefs', 'workspace_id', 'authenticated', array['SELECT', 'INSERT'], 'workspace_id is set on insert, never changed');
+select column_privs_are('public', 'briefs', 'title', 'authenticated', array['SELECT', 'INSERT', 'UPDATE'], 'title is writable');
+select column_privs_are('public', 'briefs', 'body', 'authenticated', array['SELECT', 'INSERT', 'UPDATE'], 'body is writable');
+select column_privs_are('public', 'briefs', 'created_by', 'authenticated', array['SELECT'], 'created_by is set by the database');
+select column_privs_are('public', 'briefs', 'status', 'authenticated', array['SELECT'], 'status is not writable yet');
+select column_privs_are('public', 'briefs', 'version', 'authenticated', array['SELECT'], 'version is set by the database');
+select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'anon', array[]::text[], 'anon cannot call workspace_ids_with_role');
+select function_privs_are('private', 'workspace_ids_with_role', array['text[]'], 'authenticated', array['EXECUTE'], 'authenticated can call workspace_ids_with_role (policies need it)');
+
 select ok(
-  (select bool_and(relrowsecurity) from pg_class where oid in ('public.users'::regclass, 'public.workspaces'::regclass, 'public.memberships'::regclass)),
-  'RLS is enabled on every identity table'
+  (select bool_and(relrowsecurity) from pg_class where oid in ('public.users'::regclass, 'public.workspaces'::regclass, 'public.memberships'::regclass, 'public.briefs'::regclass)),
+  'RLS is enabled on every table'
 );
 
 set local role anon;
