@@ -1,0 +1,118 @@
+/* Briefly design system. The agency's brief desk: graphite surfaces stay quiet; the one accent is the editor's
+   blue pencil. Rich colour lives only in the review coverage (present, unclear, missing).
+   Design pass via unslop by Damir Sokolovsky (@heydamir), CC BY 4.0. */
+@import 'tailwindcss';
+
+@theme {
+  /* Only these colours exist: Tailwind's default palette is switched off, so the system can't drift. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-sunken: #f4f4f5;
+  --color-line: rgb(23 23 23 / 0.08);
+  --color-line-strong: rgb(23 23 23 / 0.14);
+
+  --color-ink: #171717;
+  --color-ink-2: #525252;
+  --color-muted: #737373;
+
+  /* blue pencil: the primary action, the selection, and the margin rule on whatever needs you */
+  --color-accent: #2b59c3;
+  --color-accent-hover: #234aa6;
+  --color-accent-soft: rgb(43 89 195 / 0.08);
+
+  /* review coverage, the one place with several hues; each means something */
+  --color-present: #3f8a5f;
+  --color-unclear: #b7791f;
+  --color-missing: #c2453f;
+  --color-present-soft: rgb(63 138 95 / 0.12);
+  --color-unclear-soft: rgb(183 121 31 / 0.14);
+  --color-missing-soft: rgb(194 69 63 / 0.12);
+
+  --color-negative: #c2453f;
+  --color-negative-soft: rgb(194 69 63 / 0.08);
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-doc: 'Newsreader', Georgia, serif;
+
+  --radius-small: 6px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 0.05);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  body {
+    @apply bg-bg font-sans text-sm text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  /* toasts follow the system */
+  :root {
+    --dynaura-font: var(--font-sans);
+  }
+}
+
+/* The few controls that repeat everywhere; everything else is utilities in the markup. */
+@layer components {
+  .btn {
+    @apply inline-flex h-9 cursor-pointer items-center gap-2 rounded-control border border-line-strong bg-surface px-4 text-sm font-medium text-ink transition-[background-color,border-color,transform] duration-150 ease-out hover:bg-sunken active:scale-[0.98] disabled:cursor-default disabled:opacity-50 disabled:active:scale-100;
+  }
+
+  .btn-primary {
+    @apply border-accent bg-accent text-white hover:bg-accent-hover;
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-2;
+  }
+
+  .btn-danger {
+    @apply text-negative;
+  }
+
+  .input {
+    @apply h-9 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink transition-colors duration-150 ease-out focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
+  }
+
+  .textarea {
+    @apply w-full resize-y rounded-control border border-line-strong bg-surface px-3 py-2 text-sm text-ink transition-colors duration-150 ease-out focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)] focus:outline-none;
+  }
+
+  .label {
+    @apply grid gap-2 font-medium text-ink-2;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-surface;
+  }
+
+  .alert {
+    @apply flex gap-2 rounded-control bg-negative-soft px-3 py-2 text-negative;
+  }
+
+  .note {
+    @apply flex gap-2 rounded-control bg-sunken px-3 py-2 text-ink-2;
+  }
+
+  .meta {
+    @apply font-mono text-xs text-muted tabular-nums;
+  }
+
+  /* The signature: a blue-pencil rule in the margin of whatever is waiting on you. */
+  .needs-you {
+    @apply border-l-2 border-l-accent;
+  }
+}

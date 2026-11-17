@@ -12,23 +12,24 @@ export function WorkspacePage() {
     retry: (count, err) => !isNotFound(err) && count < 1,
   });
 
-  if (isPending) return <p>Loading workspace…</p>;
+  if (isPending) return <p className="text-muted">Loading workspace…</p>;
   if (isNotFound(error)) {
     return (
-      <p role="alert">
+      <p role="alert" className="alert">
         Workspace not found. <Link to="/">Back to your workspaces</Link>
       </p>
     );
   }
-  if (error) return <p role="alert">Could not load this workspace.</p>;
+  if (error) return <p role="alert" className="alert">Could not load this workspace.</p>;
 
   return (
     <>
-      <p>
-        <Link to="/">← Workspaces</Link>
-      </p>
-      <h1>{data.name}</h1>
-      <p>Your role: {data.role}</p>
+      <header className="mb-6">
+        <h1 className="text-[28px] leading-tight font-medium">{data.name}</h1>
+        <p className="mt-2 text-ink-2">
+          Your role: <span className="meta">{data.role}</span>
+        </p>
+      </header>
       <BriefList wsId={wsId} />
     </>
   );

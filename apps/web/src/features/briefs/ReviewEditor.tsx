@@ -27,66 +27,65 @@ export function ReviewEditor({ initial, pending, onSave, onCancel }: Props) {
   };
 
   return (
-    <form onSubmit={submit} aria-label="Edit review">
+    <form onSubmit={submit} aria-label="Edit review" className="grid gap-5">
       {invalid && (
-        <p role="alert">
+        <p role="alert" className="alert">
           Each question or risk can be at most {REVIEW_LIMITS.item} characters, with at most {REVIEW_LIMITS.items} of each.
         </p>
       )}
-      <p>
-        <label>
-          Summary
-          <br />
-          <textarea value={review.summary} maxLength={REVIEW_LIMITS.summary} rows={3} cols={80} onChange={(e) => setReview({ ...review, summary: e.target.value })} />
-        </label>
-      </p>
-      {REVIEW_AREAS.map((area) => (
-        <fieldset key={area}>
-          <legend>{AREA_LABELS[area]}</legend>
-          <label>
-            Status{' '}
-            <select
-              value={review.areas[area].status}
-              onChange={(e) => setReview({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], status: AreaStatus.parse(e.target.value) } } })}
-            >
-              {AreaStatus.options.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </label>{' '}
-          <label>
-            Note{' '}
-            <input
-              value={review.areas[area].note}
-              maxLength={REVIEW_LIMITS.note}
-              size={60}
-              onChange={(e) => setReview({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], note: e.target.value } } })}
-            />
-          </label>
-        </fieldset>
-      ))}
-      <p>
-        <label>
-          Questions for the client (one per line)
-          <br />
-          <textarea value={questions} rows={4} cols={80} onChange={(e) => setQuestions(e.target.value)} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Risks (one per line)
-          <br />
-          <textarea value={risks} rows={3} cols={80} onChange={(e) => setRisks(e.target.value)} />
-        </label>
-      </p>
-      <button type="submit" disabled={pending}>
-        {pending ? 'Saving…' : 'Save review'}
-      </button>{' '}
-      <button type="button" onClick={onCancel} disabled={pending}>
-        Cancel
-      </button>
+      <label className="label">
+        Summary
+        <textarea className="textarea font-normal" value={review.summary} maxLength={REVIEW_LIMITS.summary} rows={3} onChange={(e) => setReview({ ...review, summary: e.target.value })} />
+      </label>
+      <div className="grid divide-y divide-line border-y border-line">
+        {REVIEW_AREAS.map((area) => (
+          <fieldset key={area} className="grid items-center gap-2 py-3 sm:grid-cols-[120px_140px_minmax(0,1fr)] sm:gap-3">
+            <legend className="sr-only">{AREA_LABELS[area]}</legend>
+            <span aria-hidden className="font-medium">
+              {AREA_LABELS[area]}
+            </span>
+            <label className="grid gap-1 text-xs text-muted">
+              Status
+              <select
+                className="input text-sm"
+                value={review.areas[area].status}
+                onChange={(e) => setReview({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], status: AreaStatus.parse(e.target.value) } } })}
+              >
+                {AreaStatus.options.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs text-muted">
+              Note
+              <input
+                className="input text-sm"
+                value={review.areas[area].note}
+                maxLength={REVIEW_LIMITS.note}
+                onChange={(e) => setReview({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], note: e.target.value } } })}
+              />
+            </label>
+          </fieldset>
+        ))}
+      </div>
+      <label className="label">
+        Questions for the client (one per line)
+        <textarea className="textarea font-normal" value={questions} rows={4} onChange={(e) => setQuestions(e.target.value)} />
+      </label>
+      <label className="label">
+        Risks (one per line)
+        <textarea className="textarea font-normal" value={risks} rows={3} onChange={(e) => setRisks(e.target.value)} />
+      </label>
+      <div className="flex gap-2">
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          {pending ? 'Saving…' : 'Save review'}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={pending}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

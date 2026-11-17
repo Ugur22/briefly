@@ -64,7 +64,7 @@ describe('RequireSession', () => {
 
     expect(screen.queryByText('home')).toBeNull();
     expect(await screen.findByText('home')).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // /api/me goes first; the shell (workspaces, API status) only loads once the user is provisioned.
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/me');
   });
 

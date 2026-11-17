@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError, deleteBrief, fetchBrief, isNotFound, updateBrief } from '../../lib/api';
+import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
 import { ReviewPanel } from './ReviewPanel';
 import { SourceDownload } from './SourceDownload';
-import { STATUS_TEXT, WorkflowPanel } from './WorkflowPanel';
+import { WorkflowPanel } from './WorkflowPanel';
 
 function saveError(err: unknown) {
   if (err instanceof ApiError && err.status === 409) return 'Someone else changed this brief. Copy your text, then reload to see their version.';
@@ -41,6 +43,7 @@ export function BriefPage() {
       // New text makes the review outdated; refetch so the panel says so.
       await queryClient.invalidateQueries({ queryKey: queryKeys.review(wsId, briefId), exact: true });
       setEditingFrom(null);
+      notify.done('Brief saved', `Version ${res.brief.version}`);
     },
   });
 
@@ -51,34 +54,42 @@ export function BriefPage() {
       navigate(`/w/${wsId}`, { replace: true });
       queryClient.removeQueries({ queryKey: queryKeys.brief(wsId, briefId), exact: true });
       await queryClient.invalidateQueries({ queryKey: queryKeys.briefs(wsId), exact: true });
+      notify.done('Brief deleted');
     },
   });
 
   const back = (
-    <p>
-      <Link to={`/w/${wsId}`}>← Briefs</Link>
-    </p>
+    <Link to={`/w/${wsId}`} className="mb-4 inline-flex items-center gap-1 text-ink-2">
+      <ArrowLeft size={16} strokeWidth={1.5} aria-hidden />
+      Briefs
+    </Link>
   );
 
-  if (query.isPending) return <p>Loading brief…</p>;
+  if (query.isPending) return <p className="text-muted">Loading brief…</p>;
   if (isNotFound(query.error)) {
     return (
       <>
         {back}
-        <p role="alert">Brief not found.</p>
+        <p role="alert" className="alert">
+          Brief not found.
+        </p>
       </>
     );
   }
-  if (query.error) return <p role="alert">Could not load this brief.</p>;
+  if (query.error) return <p role="alert" className="alert">Could not load this brief.</p>;
 
   const { brief, permissions } = query.data;
 
   if (editingFrom !== null) {
     return (
-      <>
+      <div className="max-w-3xl">
         {back}
-        <h1>Edit brief</h1>
-        {save.error && <p role="alert">{saveError(save.error)}</p>}
+        <h1 className="mb-6 text-[28px] leading-tight font-medium">Edit brief</h1>
+        {save.error && (
+          <p role="alert" className="alert mb-4">
+            {saveError(save.error)}
+          </p>
+        )}
         <BriefForm
           initial={brief}
           submitLabel="Save"
@@ -91,45 +102,66 @@ export function BriefPage() {
             void queryClient.invalidateQueries({ queryKey: queryKeys.brief(wsId, briefId), exact: true });
           }}
         />
-      </>
+      </div>
     );
   }
 
   return (
     <>
       {back}
-      <h1>{brief.title}</h1>
-      <p>
-        {STATUS_TEXT[brief.status]} · version {brief.version}
-      </p>
-      <p>
-        {permissions.edit && (
-          <button type="button" onClick={() => setEditingFrom(brief.version)}>
-            Edit
-          </button>
-        )}{' '}
-        {permissions.delete && !confirmingDelete && (
-          <button type="button" onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </button>
-        )}
-      </p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[28px] leading-tight font-medium">{brief.title}</h1>
+          <p className="meta mt-2">version {brief.version}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {permissions.edit && (
+            <button type="button" className="btn" onClick={() => setEditingFrom(brief.version)}>
+              <Pencil size={16} strokeWidth={1.5} aria-hidden />
+              Edit
+            </button>
+          )}
+          {permissions.delete && !confirmingDelete && (
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)}>
+              <Trash2 size={16} strokeWidth={1.5} aria-hidden />
+              Delete
+            </button>
+          )}
+        </div>
+      </header>
+
       {confirmingDelete && (
-        <p role="group" aria-label="Confirm delete">
-          Delete “{brief.title}” for everyone in this workspace?{' '}
-          <button type="button" onClick={() => remove.mutate()} disabled={remove.isPending}>
-            {remove.isPending ? 'Deleting…' : 'Yes, delete'}
-          </button>{' '}
-          <button type="button" onClick={() => setConfirmingDelete(false)} disabled={remove.isPending}>
-            Keep it
-          </button>
+        <div role="group" aria-label="Confirm delete" className="note mb-4 flex-wrap items-center justify-between">
+          <span>Delete “{brief.title}” for everyone in this workspace?</span>
+          <span className="flex gap-2">
+            <button type="button" className="btn btn-danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
+              {remove.isPending ? 'Deleting…' : 'Yes, delete'}
+            </button>
+            <button type="button" className="btn" onClick={() => setConfirmingDelete(false)} disabled={remove.isPending}>
+              Keep it
+            </button>
+          </span>
+        </div>
+      )}
+      {remove.error && (
+        <p role="alert" className="alert mb-4">
+          Could not delete this brief.
         </p>
       )}
-      {remove.error && <p role="alert">Could not delete this brief.</p>}
-      {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
-      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{brief.body}</pre>
-      <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
-      <WorkflowPanel wsId={wsId} brief={brief} permissions={permissions} />
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-6">
+          {/* The brief as a document: set for reading, like the printed page it usually starts as. */}
+          <article className="card px-6 py-6 sm:px-8 sm:py-7">
+            <p className="max-w-[68ch] font-doc text-[17px] leading-7 whitespace-pre-wrap text-ink">{brief.body}</p>
+          </article>
+          <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
+        </div>
+        <aside className="grid gap-4 lg:sticky lg:top-8">
+          <WorkflowPanel wsId={wsId} brief={brief} permissions={permissions} />
+          {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
+        </aside>
+      </div>
     </>
   );
 }

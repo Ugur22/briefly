@@ -18,12 +18,13 @@ afterEach(() => {
 });
 
 describe('HealthStatus', () => {
-  it('shows version and commit when the API is healthy', async () => {
+  it('shows that the API is connected, with the build in the tooltip', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'ok', version: '1.2.3', commit: 'abc123' })));
 
     renderWithQuery();
 
-    expect(await screen.findByText('API ok · v1.2.3 (abc123)')).toBeTruthy();
+    expect(await screen.findByText('v1.2.3')).toBeTruthy();
+    expect(screen.getByText(/Connected/).getAttribute('title')).toBe('v1.2.3 (abc123)');
   });
 
   it('shows an alert when the API is down', async () => {

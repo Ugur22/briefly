@@ -20,29 +20,31 @@ export function BriefForm({ initial, submitLabel, pending, onSubmit, onCancel }:
   };
 
   return (
-    <form onSubmit={submit}>
-      <p>
-        <label>
-          Title
-          <br />
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={BRIEF_TITLE_MAX} />
-        </label>
-      </p>
-      <p>
-        <label>
-          Brief
-          <br />
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} cols={80} maxLength={BRIEF_BODY_MAX} />
-        </label>
-      </p>
-      <button type="submit" disabled={pending || title.trim() === ''}>
-        {pending ? 'Saving…' : submitLabel}
-      </button>{' '}
-      {onCancel && (
-        <button type="button" onClick={onCancel} disabled={pending}>
-          Cancel
+    <form onSubmit={submit} className="grid gap-5">
+      <label className="label">
+        Title
+        <input className="input font-normal" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={BRIEF_TITLE_MAX} />
+      </label>
+      <label className="label">
+        Brief
+        <textarea
+          className="textarea font-doc text-[17px] leading-7 font-normal text-ink"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={16}
+          maxLength={BRIEF_BODY_MAX}
+        />
+      </label>
+      <div className="flex gap-2">
+        <button type="submit" className="btn btn-primary" disabled={pending || title.trim() === ''}>
+          {pending ? 'Saving…' : submitLabel}
         </button>
-      )}
+        {onCancel && (
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={pending}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

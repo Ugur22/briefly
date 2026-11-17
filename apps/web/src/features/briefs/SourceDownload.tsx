@@ -1,4 +1,5 @@
 import type { BriefSource } from '@briefly/contracts';
+import { Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { downloadBriefSource } from '../../lib/api';
 
@@ -27,12 +28,22 @@ export function SourceDownload({ wsId, briefId, source }: { wsId: string; briefI
   };
 
   return (
-    <p>
-      Original: {source.name} ({size(source.size)}){' '}
-      <button type="button" onClick={download} disabled={state === 'loading'}>
+    <section aria-label="Original file" className="card grid gap-3 p-5">
+      <p className="text-xs text-muted">Original</p>
+      <p className="flex items-start gap-2 break-all text-ink">
+        <FileText size={16} strokeWidth={1.5} className="mt-0.5 flex-none text-muted" aria-hidden />
+        {source.name}
+      </p>
+      <p className="meta">{size(source.size)}</p>
+      <button type="button" className="btn w-fit" onClick={download} disabled={state === 'loading'}>
+        <Download size={16} strokeWidth={1.5} aria-hidden />
         {state === 'loading' ? 'Downloading…' : 'Download'}
       </button>
-      {state === 'failed' && <span role="alert"> Could not download the original.</span>}
-    </p>
+      {state === 'failed' && (
+        <p role="alert" className="alert">
+          Could not download the original.
+        </p>
+      )}
+    </section>
   );
 }
