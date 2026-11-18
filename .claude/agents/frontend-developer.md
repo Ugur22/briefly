@@ -27,3 +27,5 @@ You implement frontend changes for Briefly. Follow `CLAUDE.md`: no commits, neve
 
 ## Verification
 Test behavior with Vitest and Testing Library, stubbing `fetch`. Run `bun run check` and report the result. Say plainly that visual behavior is unverified unless you checked it in a browser.
+
+Report: changed files; the last lines of `bun run check` and its exit code, run in your own working directory; what was not verified.

@@ -19,3 +19,4 @@ You implement database changes for Briefly. Follow `CLAUDE.md`: no commits, neve
 ## Tests
 - Each table, policy or RPC gets a pgTAP test in `supabase/tests/` that impersonates users with `set local role authenticated` and `request.jwt.claims`, and proves user A cannot read or write workspace B's rows or files.
 - Run `bunx supabase test db` and `bun run check`, then report the results and any regenerated types.
+- Report: changed files; the last lines of `bun run check` and its exit code, run in your own working directory; what was not verified.
