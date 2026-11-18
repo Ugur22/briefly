@@ -22,7 +22,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - No commits or pushes without explicit approval. Never read, print or edit `.env`.
 - Anything non-trivial: plan first, wait for approval. Before an auth, RLS or tenancy plan is approved, ask the `advisor` agent to review it.
 - Keep hand-written files under 400 lines; split by responsibility before growing past that.
-- Do not edit `.claude/settings.json` or `scripts/hooks/` to loosen the checks.
+- The graders are read-only for agents (`permissions.deny` in `.claude/settings.json`): `scripts/hooks/`, `scripts/*.sh`, `.github/`, `.harness/`, `apps/api/scripts/review-eval/`, and `--update-baseline`. To change one, propose the edit in your reply; the user makes it. Never work around a deny (a script writing the file, `git checkout -- <path>`): that is loosening a check. Never loosen `.claude/settings.json` either, or the `check` script, test or lint config (these stay editable for normal work; `reviewer` flags any weakening).
 
 ## Verify
 `bun run check` (file-size limit, `rls-coverage.sh` and `untested.sh`, then Nx: lint, typecheck, test, build for every project; offline, a few seconds) before reporting done. A Stop hook enforces it. CI also builds the API image, boots it and hits `/api/health`, and runs gitleaks. The real Okta tenant and LLM are only called by hand.

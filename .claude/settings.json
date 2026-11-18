@@ -1,4 +1,14 @@
 {
+  "permissions": {
+    "deny": [
+      "Edit(**/scripts/hooks/**)",
+      "Edit(**/scripts/*.sh)",
+      "Edit(**/.github/**)",
+      "Edit(**/.harness/**)",
+      "Edit(**/apps/api/scripts/review-eval/**)",
+      "Bash(*update-baseline*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
