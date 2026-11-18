@@ -24,3 +24,4 @@ You implement backend changes for Briefly. Follow `CLAUDE.md`: no commits, never
 ## Tests
 - Offline Vitest: build the app with `buildApp(loadConfig({...}))` and use `app.inject`. Fake `ReviewGenerator`; no network, no real keys.
 - Add or extend a test for each behavior change, run `bun run check`, and report the result. Say plainly what could not be run.
+- Report: changed files; the last lines of `bun run check` and its exit code, run in your own working directory; what was not verified.
