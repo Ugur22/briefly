@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// Its own port, so a real dev session on :5173 (its sessionStorage, its Okta tokens) can't leak in.
+// Its own port, so a real dev session on :5173 (its localStorage and Okta tokens) can't leak in.
 const PORT = 5174;
 const baseURL = `http://127.0.0.1:${PORT}`;
 

@@ -9,7 +9,7 @@ export const OKTA_HOST = 'okta.invalid';
 export async function seedSession(page: Page, origin: string) {
   const expiresAt = Math.floor(PINNED.getTime() / 1000) + 3600;
   const tokens = JSON.stringify({
-    accessToken: { accessToken: 'fake-access', expiresAt },
+    accessToken: { accessToken: 'fake-access', claims: { iss: 'https://okta.invalid/oauth2/default', uid: 'visual-user' }, expiresAt },
     idToken: { idToken: 'fake-id', expiresAt },
   });
   await page.addInitScript(
@@ -17,7 +17,7 @@ export async function seedSession(page: Page, origin: string) {
       // Init scripts run in every frame; only the app's own origin gets the tokens.
       if (location.origin !== origin) return;
       try {
-        sessionStorage.setItem('okta-token-storage', tokens);
+        localStorage.setItem('okta-token-storage', tokens);
       } catch {
         // about:blank and sandboxed frames refuse storage access.
       }

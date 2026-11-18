@@ -1,7 +1,8 @@
-import { REVIEW_AREAS } from '@briefly/contracts';
+import { Me, REVIEW_AREAS } from '@briefly/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { queryKeys } from '../../lib/queryKeys';
 import { ReviewPanel } from './ReviewPanel';
 
 const wsId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -40,9 +41,14 @@ function serve(handler: (method: string, body: unknown) => Response) {
   return calls;
 }
 
-function renderPanel() {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+const author = Me.parse({ id: '00000000-0000-4000-8000-000000000001', email: 'author@example.test' });
+const teammate = Me.parse({ id: '00000000-0000-4000-8000-000000000002', email: 'teammate@example.test' });
+
+function renderPanel(account = author) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(queryKeys.me, account);
+  return render(
+    <QueryClientProvider client={client}>
       <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={2} />
     </QueryClientProvider>,
   );
@@ -50,6 +56,7 @@ function renderPanel() {
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -144,5 +151,63 @@ describe('ReviewPanel', () => {
 
     await screen.findByText('Clear goal, budget missing.');
     expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('review draft recovery', () => {
+  async function edit() {
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit review' }));
+  }
+
+  function changeSummary(value: string) {
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value } });
+  }
+
+  it('recovers unsaved fields after remount only for the account that edited them', async () => {
+    serve(() => Response.json({ review: stored(), permissions: allowed }));
+    const first = renderPanel();
+    await edit();
+    changeSummary('Author’s private draft');
+    const questionLines = 'First question?\n\nUnfinished question ';
+    fireEvent.change(screen.getByLabelText(/Questions for the client/), { target: { value: questionLines } });
+    first.unmount();
+
+    const other = renderPanel(teammate);
+    await edit();
+    expect(screen.getByDisplayValue(review.summary)).toBeTruthy();
+    expect(screen.queryByDisplayValue('Author’s private draft')).toBeNull();
+    other.unmount();
+
+    renderPanel();
+    expect(await screen.findByDisplayValue('Author’s private draft')).toBeTruthy();
+    expect((screen.getByLabelText(/Questions for the client/) as HTMLTextAreaElement).value).toBe(questionLines);
+  });
+
+  it.each(['Save review', 'Cancel'])('%s clears the draft across remounts', async (action) => {
+    const calls = serve(() => Response.json({ review: stored(), permissions: allowed }));
+    const first = renderPanel();
+    await edit();
+    changeSummary('Temporary edit');
+    fireEvent.click(screen.getByRole('button', { name: action }));
+    await screen.findByRole('button', { name: 'Edit review' });
+    expect(calls.filter(({ method }) => method === 'PUT')).toHaveLength(action === 'Cancel' ? 0 : 1);
+    first.unmount();
+    renderPanel();
+    await edit();
+    expect(screen.getByDisplayValue(review.summary)).toBeTruthy();
+  });
+
+  it('keeps a rejected save recoverable after remount', async () => {
+    serve(method => method === 'PUT'
+      ? Response.json({ error: 'outdated' }, { status: 409 })
+      : Response.json({ review: stored(), permissions: allowed }));
+    const first = renderPanel();
+    await edit();
+    changeSummary('Keep after conflict');
+    fireEvent.click(screen.getByRole('button', { name: 'Save review' }));
+    await screen.findByText(/draft is read-only/);
+    first.unmount();
+    renderPanel();
+    expect(await screen.findByDisplayValue('Keep after conflict')).toBeTruthy();
   });
 });
