@@ -40,6 +40,8 @@ async function offline(context: BrowserContext, origin: string, ttl = 3600) {
   const jwk = { ...await crypto.subtle.exportKey('jwk', (await keys).publicKey), kid: 'offline', use: 'sig' };
   let generation = 0;
   const refreshes: Page[] = [];
+  // A failed expect inside a route handler can leave the request hanging instead of failing the test; collect here.
+  const problems: string[] = [];
   const accounts = new Map<string, typeof me>();
   async function issue(account: typeof me) {
     const session = await tokens(account, generation, ttl);
@@ -67,8 +69,10 @@ async function offline(context: BrowserContext, origin: string, ttl = 3600) {
     if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 302, headers: { location: origin } });
     if (url.pathname.endsWith('/token')) {
       const form = new URLSearchParams(req.postData() ?? '');
-      expect(form.get('grant_type')).toBe('refresh_token');
-      expect(form.get('refresh_token')).toBe('offline-' + generation);
+      if (form.get('grant_type') !== 'refresh_token') problems.push(`unexpected grant ${form.get('grant_type')}`);
+      if (form.get('refresh_token') !== 'offline-' + generation) {
+        problems.push(`stale refresh token ${form.get('refresh_token')} while offline-${generation} is current`);
+      }
       refreshes.push(req.frame().page());
       generation++;
       const session = await issue(me);
@@ -79,7 +83,7 @@ async function offline(context: BrowserContext, origin: string, ttl = 3600) {
     }
     return route.abort();
   });
-  return { issue, refreshes };
+  return { issue, refreshes, problems };
 }
 
 const signIn = (page: Page) => page.getByRole('button', { name: 'Sign in with Okta' });
@@ -99,6 +103,8 @@ test('independent deep link recovers session and observes signout and account sw
   await expect(signIn(peer)).toBeVisible();
   await expect(signIn(page)).toBeVisible();
   await peer.goto('/');
+  // goto resolves before the app has subscribed to storage events; a session installed earlier is missed on slow runners.
+  await expect(signIn(peer)).toBeVisible();
   await installSession(page, await provider.issue(second));
   await expect(peer.getByText(/not in any workspace/)).toBeVisible();
   await expect(peer.getByRole('link', { name: /Noordzee Energie/ })).toHaveCount(0);
@@ -109,23 +115,46 @@ test('one tab rotates the refresh token and the survivor renews after leader clo
   // The SDK schedules renewal 30 seconds before expiry.
   const provider = await offline(context, baseURL!, 40);
   const peer = await context.newPage();
+  // Renewals keep firing every ~10 s, so assert who refreshes and that the survivor follows storage, never a fixed
+  // generation. Reloads and page errors are recorded so a failure explains itself.
+  const events: string[] = [];
+  for (const [name, tab] of [['page', page], ['peer', peer]] as const) {
+    tab.on('load', () => events.push(`${name} load`));
+    tab.on('pageerror', (err) => events.push(`${name} error: ${err.message}`));
+  }
+  const who = (tab: Page | undefined) => (tab === page ? 'page' : tab === peer ? 'peer' : 'unknown');
+  const story = () => [...events, `refreshes: ${provider.refreshes.map(who).join(', ')}`, ...provider.problems].join('\n');
+  // Poll messages are fixed when the poll starts; attach the history as it stood when the wait gave up.
+  const explained = (wait: Promise<unknown>) => wait.catch((err: Error) => {
+    throw new Error(`${err.message}\n--- what happened ---\n${story()}`);
+  });
+
   await Promise.all([page.goto('/'), peer.goto('/')]);
   await expect(signIn(peer)).toBeVisible();
   await expect(signIn(page)).toBeVisible();
   await installSession(page, await provider.issue(me));
   for (const tab of [page, peer]) await expect(heading(tab, 'Your workspaces')).toBeVisible();
-  await expect.poll(() => provider.refreshes.length, { timeout: 20000 }).toBe(1);
+  await expect.poll(() => provider.refreshes.length, { timeout: 20000 }).toBeGreaterThanOrEqual(1);
   const leader = provider.refreshes[0];
   if (!leader) throw new Error('No tab sent the first refresh request');
   const survivor = leader === page ? peer : page;
-  await expect.poll(() => survivor.evaluate(async () => {
+
+  // The survivor's auth state follows the rotated token in shared storage, whichever generation that is by now.
+  await explained(expect.poll(() => survivor.evaluate(async () => {
     const modulePath = '/src/lib/auth.ts';
     const { oktaAuth } = await import(modulePath);
-    return oktaAuth.authStateManager.getAuthState()?.idToken?.claims?.jti;
-  })).toBe('1');
+    const state = oktaAuth.authStateManager.getAuthState()?.idToken?.claims?.jti;
+    const stored = JSON.parse(localStorage.getItem('okta-token-storage') ?? '{}')?.idToken?.claims?.jti;
+    return stored !== undefined && stored !== '0' && state === stored;
+  }), { timeout: 20000 }).toBe(true));
+  expect(provider.refreshes.every((tab) => tab === leader), `only the leader refreshes while both tabs are open\n${story()}`).toBe(true);
+
+  const before = provider.refreshes.length;
   await leader.close();
-  await expect.poll(() => provider.refreshes.length, { timeout: 25000 }).toBe(2);
-  expect(provider.refreshes[1]).toBe(survivor);
+  await explained(expect.poll(() => provider.refreshes.length, { timeout: 25000 }).toBeGreaterThan(before));
+  // A request the leader had in flight when it closed is fine; every refresh it didn't start comes from the survivor.
+  expect(provider.refreshes.slice(before).every((tab) => tab === survivor), `survivor takes over\n${story()}`).toBe(true);
+  expect(provider.problems, story()).toEqual([]);
   await survivor.reload();
   await expect(heading(survivor, 'Your workspaces')).toBeVisible();
 });

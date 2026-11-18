@@ -27,6 +27,7 @@ export function BriefPage() {
   // Navigation is a transition, so this page stays mounted for a moment after a delete. Turning its query off
   // first means dropping the cache entry can't make it fetch the deleted brief again (a 404).
   const [deleted, setDeleted] = useState(false);
+  const [reviewEditing, setReviewEditing] = useState(false);
 
   const query = useQuery({
     queryKey: queryKeys.brief(wsId, briefId),
@@ -166,10 +167,18 @@ export function BriefPage() {
           <article className="rounded-small bg-surface px-6 py-6 shadow-[0_2px_8px_rgb(22_61_62/0.06)] sm:px-8 sm:py-7">
             <p className="max-w-[68ch] font-doc text-[17px] leading-7 whitespace-pre-wrap text-ink">{brief.body}</p>
           </article>
-          <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} />
+          <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={brief.version} onEditingChange={setReviewEditing} />
         </div>
         <aside className="grid gap-4 lg:sticky lg:top-8">
-          <WorkflowPanel reviewReady={reviewQuery.isSuccess && review?.state === 'succeeded' && !review.outdated && review.briefVersion === brief.version && !generating} wsId={wsId} brief={brief} permissions={permissions} />
+          <WorkflowPanel
+            reviewReady={reviewQuery.isSuccess && review?.state === 'succeeded' && !review.outdated && review.briefVersion === brief.version && !generating}
+            reviewStatus={reviewQuery.status}
+            onRetryReview={() => void reviewQuery.refetch()}
+            reviewEditing={reviewEditing}
+            wsId={wsId}
+            brief={brief}
+            permissions={permissions}
+          />
           {brief.source && <SourceDownload wsId={wsId} briefId={briefId} source={brief.source} />}
         </aside>
       </div>
