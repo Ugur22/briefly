@@ -32,7 +32,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - `advisor` (Opus, read-only): call it before a plan is approved, after the same failure twice, and before reporting an auth/RLS/tenancy change done. It advises; the lead applies.
 - `backend-developer` (`apps/api`, `libs/contracts`), `db-developer` (`supabase/`), `frontend-developer` (`apps/web`): scoped changes. Cross-stack work starts with the contract in `libs/contracts`, agreed in the plan.
 - Repo-wide searches: the built-in Explore agent with `model: haiku`.
-- Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff. A fresh worktree has no `node_modules` and a socket path too long for Nx: tell the agent to run `bun install --frozen-lockfile` first and to set `NX_SOCKET_DIR=$TMPDIR/n` for `bun run check`.
+- Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff. A fresh worktree has no `node_modules` and a socket path too long for Nx: tell the agent to run `BUN_TMPDIR=$TMPDIR BUN_INSTALL_CACHE_DIR=$TMPDIR/bun-cache bun install --frozen-lockfile` first (the sandbox denies bun's default temp dir) and to set `NX_SOCKET_DIR=$TMPDIR/n` for `bun run check`.
 - Every delegation prompt states, so nothing depends on the agent guessing:
   - **Goal**: one sentence.
   - **Constraints**: the rules from the plan and this file that apply.
