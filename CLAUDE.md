@@ -33,7 +33,8 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - `backend-developer` (`apps/api`, `libs/contracts`), `db-developer` (`supabase/`), `frontend-developer` (`apps/web`): scoped changes. Cross-stack work starts with the contract in `libs/contracts`, agreed in the plan.
 - Repo-wide searches: the built-in Explore agent with `model: haiku`.
 - Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff.
-- UI polish: the `unslop` skill.
+- `ui-designer` (Opus, read-only): design research before a new screen or redesign, and critique of rendered screenshots after one. It advises; `frontend-developer` implements.
+- Design skills: `frontend-design` to build a screen, `critique` (used by `ui-designer`) to judge it, `audit` on request, `unslop` as the only finishing pass. Design direction and the reference log live in `.impeccable.md`; read it before any UI work.
 
 ## Loops
 Pick the loop by what you hand off. Every loop needs an exit; never start one without it.
@@ -43,5 +44,6 @@ Pick the loop by what you hand off. Every loop needs an exit; never start one wi
   - RLS covered: `supabase test db` exits 0 and `scripts/rls-coverage.sh` prints nothing (every table with `workspace_id` has a cross-tenant pgTAP test). From Phase 1; `advisor` still reviews before done.
   - Web quality: Lighthouse JSON of `vite preview` at 400px wide shows performance and accessibility ≥ 0.90 (checked with `jq`). Once real UI exists.
   - Smoke flow: `bunx playwright test` exits 0 at 400px and 1280px. Once real UI exists; shares the visual-check Playwright config.
+- **Design (the eye)**: only for a new screen or flow, a change to tokens or shared classes in `index.css`, or when asked; never for copy tweaks, single-component fixes or backend work. Research with `ui-designer` first if it is a new screen or redesign, and put the direction in the plan. After `bun run check` is green, capture with `SHOT_SET=pass-1 bun run visual -g "<screens>"` (axe and 400px overflow must pass), have `ui-designer` review that set, fix P0 and P1 findings, then capture `pass-2` and have it compare. Exit: no P0/P1 left, 3 passes, or blocked; report P2s and which screenshots were reviewed.
 - **Time-based (the trigger)**: GitHub Actions cron for anything a command answers (no tokens); `/schedule` only when the run needs judgement. Runs report, never change code. `/loop` is in-session only, e.g. watching CI on a PR. Exit: one report per run; `/loop` stops on a stated outcome.
 - **Proactive (the prompt)**: Dependabot PRs, gated by CI, merged by a human. Nothing merges on its own and nothing loosens a check.

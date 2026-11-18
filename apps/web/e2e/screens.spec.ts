@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { baseRoutes, briefPath, briefRoutes, mockApi, workspacePath, type Routes } from './mockApi';
 import { pinClock, seedSession } from './session';
@@ -7,14 +8,16 @@ type Screen = {
   path: string;
   routes?: Routes;
   signedIn?: false;
-  // Something only the finished screen shows, so a loading or error state never gets captured.
-  ready: (page: Page) => Locator;
+  // What only the finished screen shows, so a loading or error state never gets captured.
+  ready: (page: Page) => Locator | Locator[];
   act?: (page: Page) => Promise<void>;
 };
 
 const button = (name: string) => (page: Page) => page.getByRole('button', { name, exact: true });
 const text = (t: string | RegExp) => (page: Page) => page.getByText(t).first();
 const heading = (name: string) => (page: Page) => page.getByRole('heading', { name, exact: true });
+// Locked screens render the status column before the review arrives; wait for both.
+const withReview = (ready: (page: Page) => Locator) => (page: Page) => [ready(page), heading('Questions for the client')(page)];
 
 const screens: Screen[] = [
   { name: 'sign-in', path: '/', signedIn: false, ready: button('Sign in with Okta') },
@@ -45,10 +48,10 @@ const screens: Screen[] = [
     act: async (page) => page.getByRole('button', { name: 'Edit', exact: true }).click(),
     ready: heading('Edit brief'),
   },
-  { name: 'brief-in-review-approver', path: briefPath('inReview'), routes: briefRoutes('inReview', 'locked'), ready: button('Approve') },
-  { name: 'brief-in-review-submitter', path: briefPath('mine'), routes: briefRoutes('mine', 'locked'), ready: text(/You submitted this brief/) },
+  { name: 'brief-in-review-approver', path: briefPath('inReview'), routes: briefRoutes('inReview', 'locked'), ready: withReview(button('Approve')) },
+  { name: 'brief-in-review-submitter', path: briefPath('mine'), routes: briefRoutes('mine', 'locked'), ready: withReview(text(/You submitted this brief/)) },
   { name: 'brief-changes-requested', path: briefPath('changes'), routes: briefRoutes('changes', 'done'), ready: button('Resubmit for human review') },
-  { name: 'brief-approved', path: briefPath('approved'), routes: briefRoutes('approved', 'locked'), ready: text(/This brief is final/) },
+  { name: 'brief-approved', path: briefPath('approved'), routes: briefRoutes('approved', 'locked'), ready: withReview(text(/This brief is final/)) },
   { name: 'brief-uploaded', path: briefPath('uploaded'), routes: briefRoutes('uploaded', 'done'), ready: text('Noordzee_Q1-2027_brief_v2.pdf') },
   { name: 'new-brief-paste', path: `${workspacePath}/briefs/new`, ready: heading('New brief') },
   {
@@ -70,15 +73,26 @@ for (const screen of screens) {
     // A screen that fell back to the sign-in card fails here instead of producing a misleading shot.
     if (screen.signedIn !== false) await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
     await screen.act?.(page);
-    await expect(screen.ready(page)).toBeVisible();
+    for (const ready of [screen.ready(page)].flat()) await expect(ready).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
+    // SHOT_SET keeps each design-review pass in its own folder, so passes can be compared.
+    const set = process.env.SHOT_SET ? `${process.env.SHOT_SET}/` : '';
     await page.screenshot({
-      path: `${testInfo.project.testDir}/screenshots/${testInfo.project.name}/${screen.name}.png`,
+      path: `${testInfo.project.testDir}/screenshots/${set}${testInfo.project.name}/${screen.name}.png`,
       fullPage: true,
       animations: 'disabled',
     });
     expect(unexpected).toEqual([]);
+
+    // The measurable half of design review; the rest is ui-designer's judgement.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, 'page scrolls horizontally').toBeLessThanOrEqual(0);
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    const serious = violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
+    expect(serious).toEqual([]);
   });
 }
 
