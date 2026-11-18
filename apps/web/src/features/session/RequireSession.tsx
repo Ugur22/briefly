@@ -3,7 +3,7 @@ import { FileText, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { fetchMe, fetchWorkspaces } from '../../lib/api';
-import { oktaAuth, useAuthState } from '../../lib/auth';
+import { oktaAuth, sessionKey, useAuthState } from '../../lib/auth';
 import { queryKeys } from '../../lib/queryKeys';
 import { HealthStatus } from '../health/HealthStatus';
 
@@ -96,7 +96,11 @@ export function RequireSession() {
     setSigningOut(true);
     await queryClient.cancelQueries();
     queryClient.clear();
-    await oktaAuth.signOut();
+    if (sessionKey(authState.accessToken) !== sessionKey(oktaAuth.tokenManager.getTokensSync().accessToken)) {
+      setSigningOut(false);
+      return;
+    }
+    await oktaAuth.signOut({ clearTokensBeforeRedirect: true });
   };
 
   return (

@@ -1,4 +1,4 @@
-import { OktaAuth } from '@okta/okta-auth-js/core';
+import { OktaAuth, type AccessToken } from '@okta/okta-auth-js/core';
 import { useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { safeReturnPath } from './returnTo';
@@ -9,8 +9,6 @@ const env = z
 
 let returnTo = '/';
 
-// PKCE, no client secret. sessionStorage survives reloads but not the tab; refresh tokens rotate on every use,
-// so a stolen one is spent the moment the real session renews.
 export const oktaAuth = new OktaAuth({
   issuer: env.VITE_OKTA_ISSUER,
   clientId: env.VITE_OKTA_CLIENT_ID,
@@ -18,7 +16,14 @@ export const oktaAuth = new OktaAuth({
   postLogoutRedirectUri: window.location.origin,
   scopes: ['openid', 'profile', 'email', 'offline_access'],
   pkce: true,
-  tokenManager: { storage: 'sessionStorage', autoRenew: true },
+  // The UI cache uses the same issuer and uid as the API when an access token rotates.
+  decodeAccessTokens: true,
+  // Passive auth-state checks run in every tab. Leave expiration handling to the elected SDK service.
+  tokenManager: { storage: 'localStorage', autoRenew: false, autoRemove: false },
+  storageManager: { transaction: { storageTypes: ['sessionStorage'] } },
+  transactionManager: { enableSharedStorage: false },
+  // Only the elected tab should renew a rotating refresh token, including after a tab regains focus.
+  services: { syncStorage: true, autoRenew: true, autoRemove: true, renewOnTabActivation: false },
   // Okta deletes the stored URI before calling this, so this is the only place to read it.
   // The callback route then navigates inside the router instead of reloading the page.
   restoreOriginalUri: async (_auth, originalUri) => {
@@ -40,4 +45,11 @@ function subscribe(onChange: () => void) {
 
 export function useAuthState() {
   return useSyncExternalStore(subscribe, () => oktaAuth.authStateManager.getAuthState());
+}
+
+export function sessionKey(token: AccessToken | undefined) {
+  const claims = token?.claims;
+  return typeof claims?.iss === 'string' && typeof claims.uid === 'string'
+    ? JSON.stringify([claims.iss, claims.uid])
+    : undefined;
 }

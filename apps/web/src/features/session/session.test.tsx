@@ -9,13 +9,15 @@ const okta = vi.hoisted(() => ({
   authState: null as { isAuthenticated: boolean } | null,
   signInWithRedirect: vi.fn(async () => {}),
   signOut: vi.fn(async () => true),
+  getTokensSync: vi.fn(() => ({})),
   completeSignIn: vi.fn(async () => '/'),
 }));
 
 vi.mock('../../lib/auth', () => ({
   useAuthState: () => okta.authState,
   completeSignIn: okta.completeSignIn,
-  oktaAuth: { signInWithRedirect: okta.signInWithRedirect, signOut: okta.signOut },
+  sessionKey: (token?: { accessToken: string }) => token?.accessToken,
+  oktaAuth: { signInWithRedirect: okta.signInWithRedirect, signOut: okta.signOut, tokenManager: { getTokensSync: okta.getTokensSync } },
 }));
 
 function renderAt(path: string, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
@@ -79,6 +81,19 @@ describe('RequireSession', () => {
     await waitFor(() => expect(okta.signOut).toHaveBeenCalledOnce());
     expect(client.getQueryCache().getAll()).toHaveLength(0);
   });
+  it('ignores a sign-out click from a view belonging to the previous account', async () => {
+    okta.authState = { isAuthenticated: true };
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ id: '11111111-1111-4111-8111-111111111111', email: 'alice@test.dev' })));
+    renderAt('/');
+    await screen.findByText('home');
+
+    okta.getTokensSync.mockReturnValueOnce({ accessToken: { accessToken: 'replacement' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    await waitFor(() => expect(okta.getTokensSync).toHaveBeenCalled());
+    expect(okta.signOut).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('LoginCallback', () => {

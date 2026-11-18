@@ -26,12 +26,13 @@ export class ApiError extends Error {
 // 400 is a malformed id in the URL; to the user that is the same as something that doesn't exist.
 export const isNotFound = (err: unknown) => err instanceof ApiError && (err.status === 404 || err.status === 400);
 
+type SessionSnapshot = { accessToken: string | undefined; sessionKey?: string };
 type ApiAuth = {
-  getAccessToken: () => string | undefined;
+  getSessionSnapshot: () => SessionSnapshot;
   onUnauthorized: () => void;
 };
 
-let auth: ApiAuth = { getAccessToken: () => undefined, onUnauthorized: () => {} };
+let auth: ApiAuth = { getSessionSnapshot: () => ({ accessToken: undefined }), onUnauthorized: () => {} };
 
 // Set once at startup; kept out of this module so tests don't need Okta.
 export function configureApi(next: ApiAuth) {
@@ -39,9 +40,18 @@ export function configureApi(next: ApiAuth) {
 }
 
 // The only place that calls /api/*: responses are parsed against the shared contract, so drift fails loudly here.
-async function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<Response> {
+async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body: unknown, read: (res: Response) => Promise<T> | T): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  const token = auth.getAccessToken();
+  const config = auth;
+  const { accessToken: token, sessionKey = token } = config.getSessionSnapshot();
+  function assertCurrent() {
+    const current = auth.getSessionSnapshot();
+    if (auth !== config || (current.sessionKey ?? current.accessToken) !== sessionKey) {
+      throw new DOMException('Session changed', 'AbortError');
+    }
+    return current;
+  }
+
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const init: RequestInit = { headers };
@@ -54,10 +64,19 @@ async function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, 
     init.body = JSON.stringify(body);
   }
 
-  const res = await fetch(path, init);
-  if (res.status === 401) auth.onUnauthorized();
-  if (!res.ok) throw new ApiError(res.status, await errorCode(res));
-  return res;
+  let res: Response;
+  let current: SessionSnapshot;
+  let code: string | undefined;
+  try {
+    res = await fetch(path, init);
+    assertCurrent();
+    if (res.ok) return await read(res);
+    code = await errorCode(res);
+  } finally {
+    current = assertCurrent();
+  }
+  if (res.status === 401 && token && token === current.accessToken) auth.onUnauthorized();
+  throw new ApiError(res.status, code);
 }
 
 async function errorCode(res: Response): Promise<string | undefined> {
@@ -67,10 +86,10 @@ async function errorCode(res: Response): Promise<string | undefined> {
 }
 
 const getJson = async <S extends z.ZodType>(path: string, schema: S): Promise<z.infer<S>> =>
-  schema.parse(await (await request('GET', path)).json());
+  request('GET', path, undefined, async res => schema.parse(await res.json()));
 
 const sendJson = async <S extends z.ZodType>(method: 'POST' | 'PUT', path: string, body: unknown, schema: S): Promise<z.infer<S>> =>
-  schema.parse(await (await request(method, path, body)).json());
+  request(method, path, body, async res => schema.parse(await res.json()));
 
 const ws = (wsId: string) => `/api/workspaces/${encodeURIComponent(wsId)}`;
 const brief = (wsId: string, briefId: string) => `${ws(wsId)}/briefs/${encodeURIComponent(briefId)}`;
@@ -86,24 +105,24 @@ export const createBrief = (wsId: string, input: BriefCreate) => sendJson('POST'
 export const updateBrief = (wsId: string, briefId: string, input: BriefUpdate) =>
   sendJson('PUT', brief(wsId, briefId), input, BriefResponse);
 export const deleteBrief = async (wsId: string, briefId: string) => {
-  await request('DELETE', brief(wsId, briefId));
+  await request('DELETE', brief(wsId, briefId), undefined, () => undefined);
 };
 
 export const uploadBrief = async (wsId: string, file: File, title?: string) => {
   const form = new FormData();
   if (title?.trim()) form.append('title', title);
   form.append('file', file);
-  return BriefResponse.parse(await (await request('POST', `${ws(wsId)}/briefs/upload`, form)).json());
+  return sendJson('POST', `${ws(wsId)}/briefs/upload`, form, BriefResponse);
 };
 
 // The original comes back as bytes, not JSON, so it skips the contract parsing; the token stays in the header.
 export const downloadBriefSource = async (wsId: string, briefId: string): Promise<Blob> =>
-  (await request('GET', `${brief(wsId, briefId)}/source`)).blob();
+  request('GET', `${brief(wsId, briefId)}/source`, undefined, res => res.blob());
 
 export const fetchReview = (wsId: string, briefId: string) => getJson(`${brief(wsId, briefId)}/review`, BriefReviewResponse);
 // Waits for the model (up to ~50 s); the caller shows progress and keeps the button disabled meanwhile.
 export const generateReview = async (wsId: string, briefId: string) =>
-  BriefReviewResponse.parse(await (await request('POST', `${brief(wsId, briefId)}/review`)).json());
+  sendJson('POST', `${brief(wsId, briefId)}/review`, undefined, BriefReviewResponse);
 export const saveReview = (wsId: string, briefId: string, edit: ReviewEdit) => sendJson('PUT', `${brief(wsId, briefId)}/review`, edit, BriefReviewResponse);
 
 export const submitBrief = (wsId: string, briefId: string, version: number) => sendJson('POST', `${brief(wsId, briefId)}/submit`, { version }, BriefResponse);

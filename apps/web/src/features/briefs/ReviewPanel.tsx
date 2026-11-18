@@ -2,9 +2,10 @@ import { REVIEW_AREAS, type AreaStatus, type BriefReview, type Review, type Revi
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle, Pencil, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { ApiError, fetchReview, generateReview, saveReview } from '../../lib/api';
+import { ApiError, fetchMe, fetchReview, generateReview, saveReview } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
+import { readDraft, storeDraft, type ReviewDraft } from './reviewDraft';
 import { ReviewEditor } from './ReviewEditor';
 
 export const AREA_LABELS: Record<ReviewArea, string> = {
@@ -113,9 +114,22 @@ export function useBriefReview(wsId: string, briefId: string, enabled = true) {
 
 }
 
-export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; briefId: string; briefVersion: number }) {
+type PanelProps = { wsId: string; briefId: string; briefVersion: number };
+
+export function ReviewPanel(props: PanelProps) {
+  const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe, enabled: false });
+  const scope = JSON.stringify([me.data?.id, props.wsId, props.briefId]);
+  return <ScopedReviewPanel key={scope} {...props} storageKey={me.data?.id ? `briefly:review-draft:${scope}` : undefined} />;
+}
+
+function ScopedReviewPanel({ wsId, briefId, briefVersion, storageKey }: PanelProps & { storageKey?: string }) {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => readDraft(storageKey));
+  const editing = draft !== null;
+  function updateDraft(next: ReviewDraft | null) {
+    storeDraft(storageKey, next);
+    setDraft(next);
+  }
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const query = useBriefReview(wsId, briefId);
   const generate = useMutation({
@@ -131,7 +145,7 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
     mutationFn: (review: Review) => saveReview(wsId, briefId, { review, briefVersion }),
     onSuccess: (res) => {
       queryClient.setQueryData(queryKeys.review(wsId, briefId), res);
-      setEditing(false);
+      updateDraft(null);
       notify.done('Review saved');
     },
   });
@@ -143,6 +157,9 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
   // While regenerating, or after a failed attempt, the previous review is still shown; only a succeeded one is editable.
   const shown = review?.review ?? null;
   const editable = review?.state === 'succeeded' && !review.outdated && permissions.edit;
+  const conflict = !!draft && (!editable || !shown || review.briefVersion !== draft.version ||
+    briefVersion !== draft.version || review.generatedAt !== draft.generatedAt || review.editedAt !== draft.editedAt ||
+    (save.error instanceof ApiError && ['outdated', 'no_review', 'locked'].includes(save.error.code ?? '')));
   const runningElsewhere = review?.state === 'pending' && !generate.isPending;
   // Replacing a review the team has edited throws those edits away, so ask first.
   const startGenerate = () => (review?.editedAt && !confirmingRegenerate ? setConfirmingRegenerate(true) : generate.mutate());
@@ -155,7 +172,10 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
         </h2>
         <div className="flex flex-wrap gap-2">
           {shown && review && !editing && editable && (
-            <button type="button" className="btn btn-tonal" onClick={() => setEditing(true)}>
+            <button type="button" className="btn btn-tonal" onClick={() => setDraft({
+              version: briefVersion, generatedAt: review.generatedAt, editedAt: review.editedAt,
+              fields: { ...shown, questions: shown.questions.join('\n'), risks: shown.risks.join('\n') },
+            })}>
               <Pencil size={16} strokeWidth={1.5} aria-hidden />
               Edit review
             </button>
@@ -216,9 +236,10 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
           <Provenance review={review} />
         </>
       )}
-      {shown && editing && (
+      {draft && (
         <>
-          {save.error && (
+          {conflict && <p role="status" className="note">This draft is read-only because the brief or review changed or editing is unavailable. You can copy your edits.</p>}
+          {save.error && !conflict && (
             <p role="alert" className="alert">
               {save.error instanceof ApiError && (save.error.code === 'outdated' || save.error.code === 'no_review')
                 ? 'The brief or its review changed while you were editing. Regenerate the review first.'
@@ -226,12 +247,14 @@ export function ReviewPanel({ wsId, briefId, briefVersion }: { wsId: string; bri
             </p>
           )}
           <ReviewEditor
-            initial={shown}
+            review={draft.fields}
+            readOnly={conflict}
+            onChange={fields => updateDraft({ ...draft, fields })}
             pending={save.isPending}
             onSave={(r) => save.mutate(r)}
             onCancel={() => {
               save.reset();
-              setEditing(false);
+              updateDraft(null);
             }}
           />
         </>
