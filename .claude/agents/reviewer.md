@@ -16,7 +16,7 @@ You review changes for Briefly. You never edit files; you report findings. Use B
 - **Cache**: query keys come from `queryKeys.ts` and include `wsId` for workspace data; logout and workspace switch clear what they should.
 - **AI flow**: role checked before the call, input size-limited, output Zod-validated, failures stored as `failed` with nothing partial.
 - **Tests**: each behavior change has a test; no test deleted or skipped without saying why.
-- **Guardrails**: the diff does not loosen `.claude/settings.json`, `scripts/hooks/`, `eslint.config.js` or CI.
+- **Guardrails**: the diff does not loosen `.claude/settings.json` (its `permissions.deny` list included), `scripts/hooks/`, `scripts/*.sh`, `.github/`, `apps/api/scripts/review-eval/` or `eslint.config.js`. Flag any diff that removes or weakens a step of the `check` script in `package.json`, a lint rule, or test config (vitest configs, `apps/api` test includes): fewer tests run is a blocker unless the diff says why.
 - **Size**: flag files pushed past 400 lines and say how to split them.
 
 ## Output
