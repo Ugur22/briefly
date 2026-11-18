@@ -99,6 +99,8 @@ test('independent deep link recovers session and observes signout and account sw
   await expect(signIn(peer)).toBeVisible();
   await expect(signIn(page)).toBeVisible();
   await peer.goto('/');
+  // goto resolves before the app has subscribed to storage events; a session installed earlier is missed on slow runners.
+  await expect(signIn(peer)).toBeVisible();
   await installSession(page, await provider.issue(second));
   await expect(peer.getByText(/not in any workspace/)).toBeVisible();
   await expect(peer.getByRole('link', { name: /Noordzee Energie/ })).toHaveCount(0);
@@ -122,7 +124,9 @@ test('one tab rotates the refresh token and the survivor renews after leader clo
     const modulePath = '/src/lib/auth.ts';
     const { oktaAuth } = await import(modulePath);
     return oktaAuth.authStateManager.getAuthState()?.idToken?.claims?.jti;
-  })).toBe('1');
+    // Same budget as the other waits here: the survivor learns of the rotation through a storage event, which a
+    // loaded CI runner can deliver well after the default 5 seconds.
+  }), { timeout: 20000 }).toBe('1');
   await leader.close();
   await expect.poll(() => provider.refreshes.length, { timeout: 25000 }).toBe(2);
   expect(provider.refreshes[1]).toBe(survivor);
