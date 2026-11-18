@@ -1,0 +1,10 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#ffffff","primaryBorderColor":"#2b59c3","primaryTextColor":"#1f2a2e","lineColor":"#5b6b70","edgeLabelBackground":"#f3f6f6","clusterBkg":"#eef3f3","clusterBorder":"#9fb3b6"}}}%%
+flowchart LR
+  user([User]) --> web[Web app<br/>React]
+  web <-- "sign in (OIDC + PKCE)<br/>access token" --> okta[Okta]
+  web -- "/api + access token" --> api[API<br/>Fastify]
+  api -- "same token" --> db[(Supabase<br/>Postgres + RLS<br/>private Storage)]
+  api -- brief text --> llm[LLM<br/>Claude / OpenAI]
+  llm -- structured review --> api
+  okta -. "signing keys (JWKS, cached)" .-> api
+  okta -. "signing keys (JWKS)" .-> db
