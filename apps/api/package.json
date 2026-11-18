@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "smoke:hosted": "bun --env-file=../../.env scripts/hosted-smoke.ts",
+    "eval:review": "bun --env-file=../../.env scripts/review-eval/run.ts",
     "spike:storage": "bun --env-file=../../.env scripts/storage-spike.ts"
   },
   "dependencies": {
