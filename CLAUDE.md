@@ -25,7 +25,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - Do not edit `.claude/settings.json` or `scripts/hooks/` to loosen the checks.
 
 ## Verify
-`bun run check` (file-size limit, then Nx: lint, typecheck, test, build for every project; offline, a few seconds) before reporting done. A Stop hook enforces it. CI also builds the API image, boots it and hits `/api/health`, and runs gitleaks. The real Okta tenant and LLM are only called by hand.
+`bun run check` (file-size limit, `rls-coverage.sh` and `untested.sh`, then Nx: lint, typecheck, test, build for every project; offline, a few seconds) before reporting done. A Stop hook enforces it. CI also builds the API image, boots it and hits `/api/health`, and runs gitleaks. The real Okta tenant and LLM are only called by hand.
 
 ## Agents
 - Lead: the main session plans, edits, and runs checks.
@@ -47,7 +47,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 Pick the loop by what you hand off. Every loop needs an exit; never start one without it.
 - **Turn-based (the check)**: the default. The Stop hook runs `bun run check` whenever the tree's git state changed since the last green run (any file type, deletions included) and blocks at most 3 times; the second block suggests `advisor`, and at the cap the user is told the work is not done, so your final reply must say so too. The same hook, on `PreToolUse` for `SubagentHandback`, refuses a worktree agent's report while its own tree is red (at most 3 times; after that the report arrives with a RED warning on top). Add `reviewer` on the diff and `advisor` per the rules above. Exit: check green, or 3 blocked stops and a report.
 - **Goal-based (the stop condition)**: `/goal "<command> exits 0, or stop after N tries"` when done is a command result, never an opinion. Keep N ≤ 3 while the Stop hook's 3-block cap applies. Exit: condition met, N reached, or `/goal clear`. Recipes (add each script in the PR that first needs it):
-  - Domain and application code tested: `scripts/untested.sh` prints nothing (every non-test file in `*/domain` and `*/application` has a sibling test). From Phase 1.
+  - Domain and application code tested: `scripts/untested.sh` prints nothing (every non-test file in `*/domain` and `*/application` has a sibling test). From Phase 1; also runs in `bun run check`.
   - RLS covered: `supabase test db` exits 0 and `scripts/rls-coverage.sh` prints nothing (every table with `workspace_id` has a cross-tenant pgTAP test). From Phase 1; `advisor` still reviews before done.
   - Web quality: Lighthouse JSON of `vite preview` at 400px wide shows performance and accessibility ≥ 0.90 (checked with `jq`). Once real UI exists.
   - Smoke flow: `bunx playwright test` exits 0 at 400px and 1280px. Once real UI exists; shares the visual-check Playwright config.
