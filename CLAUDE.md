@@ -32,7 +32,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 - `advisor` (Opus, read-only): call it before a plan is approved, after the same failure twice, and before reporting an auth/RLS/tenancy change done. It advises; the lead applies.
 - `backend-developer` (`apps/api`, `libs/contracts`), `db-developer` (`supabase/`), `frontend-developer` (`apps/web`): scoped changes. Cross-stack work starts with the contract in `libs/contracts`, agreed in the plan.
 - Repo-wide searches: the built-in Explore agent with `model: haiku`.
-- Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff.
+- Run parallel agents with `isolation: "worktree"`, and finish with `reviewer` (read-only) on the diff. A fresh worktree has no `node_modules` and a socket path too long for Nx: tell the agent to run `bun install --frozen-lockfile` first and to set `NX_SOCKET_DIR=$TMPDIR/n` for `bun run check`.
 - Every delegation prompt states, so nothing depends on the agent guessing:
   - **Goal**: one sentence.
   - **Constraints**: the rules from the plan and this file that apply.
@@ -45,7 +45,7 @@ Nx + Bun workspaces: `apps/web` (React, Vite, TanStack Query), `apps/api` (Fasti
 
 ## Loops
 Pick the loop by what you hand off. Every loop needs an exit; never start one without it.
-- **Turn-based (the check)**: the default. The Stop hook runs `bun run check` whenever the tree's git state changed since the last green run (any file type, deletions included) and blocks at most 3 times; the second block suggests `advisor`, and at the cap the user is told the work is not done, so your final reply must say so too. On SubagentStop the same hook checks a worktree agent's own tree before it can report back. Add `reviewer` on the diff and `advisor` per the rules above. Exit: check green, or 3 blocked stops and a report.
+- **Turn-based (the check)**: the default. The Stop hook runs `bun run check` whenever the tree's git state changed since the last green run (any file type, deletions included) and blocks at most 3 times; the second block suggests `advisor`, and at the cap the user is told the work is not done, so your final reply must say so too. The same hook, on `PreToolUse` for `SubagentHandback`, refuses a worktree agent's report while its own tree is red (at most 3 times; after that the report arrives with a RED warning on top). Add `reviewer` on the diff and `advisor` per the rules above. Exit: check green, or 3 blocked stops and a report.
 - **Goal-based (the stop condition)**: `/goal "<command> exits 0, or stop after N tries"` when done is a command result, never an opinion. Keep N ≤ 3 while the Stop hook's 3-block cap applies. Exit: condition met, N reached, or `/goal clear`. Recipes (add each script in the PR that first needs it):
   - Domain and application code tested: `scripts/untested.sh` prints nothing (every non-test file in `*/domain` and `*/application` has a sibling test). From Phase 1.
   - RLS covered: `supabase test db` exits 0 and `scripts/rls-coverage.sh` prints nothing (every table with `workspace_id` has a cross-tenant pgTAP test). From Phase 1; `advisor` still reviews before done.
