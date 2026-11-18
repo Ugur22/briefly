@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { completeSignIn } from '../../lib/auth';
+import { Waiting } from './RequireSession';
 
 export function LoginCallback() {
   const navigate = useNavigate();
@@ -16,12 +17,15 @@ export function LoginCallback() {
 
   if (failure !== null) {
     return (
-      <main className="grid min-h-screen place-items-center p-6">
-        <p role="alert" className="alert">
-          Sign-in failed: {failure}. <a href="/">Try again</a>
-        </p>
-      </main>
+      <Waiting>
+        <div className="grid justify-items-center gap-3">
+          <p role="alert" className="alert">Sign-in failed: {failure}.</p>
+          <a href="/" className="btn hover:no-underline">
+            Try again
+          </a>
+        </div>
+      </Waiting>
     );
   }
-  return <p className="p-8 text-muted">Signing you in…</p>;
+  return <Waiting>Signing you in…</Waiting>;
 }

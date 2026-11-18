@@ -27,6 +27,51 @@ const ERRORS: Record<string, string> = {
 };
 const message = (err: unknown) => (err instanceof ApiError && err.code && ERRORS[err.code]) || 'That did not work. Try again.';
 
+// Where the brief stands and why. Rendered near the title on small screens, so status and the approver's reason
+// are not 2000px down the page, and at the top of the side column on large ones.
+export function WorkflowStatus({ brief, permissions, headingId }: { brief: Brief; permissions: BriefPermissions; headingId?: string }) {
+  const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe });
+  const submittedByMe = me.data !== undefined && brief.submittedBy === me.data.id;
+  const myDecision = brief.status === 'in_review' && permissions.decide && me.data !== undefined && !submittedByMe;
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-2">
+        <p className="text-xs text-muted">Status</p>
+        <h2 id={headingId} className="text-base font-medium">
+          <Status status={brief.status} />
+          <span className="sr-only">Status: {STATUS_TEXT[brief.status]}</span>
+        </h2>
+      </div>
+      {brief.status === 'changes_requested' && brief.decisionComment && (
+        <p className="grid gap-1 rounded-control bg-unclear-soft px-3 py-2">
+          <span className="text-xs text-ink-2">From the approver</span>
+          <span className="text-ink">{brief.decisionComment}</span>
+        </p>
+      )}
+      {brief.status === 'approved' && brief.decisionComment && (
+        <p className="grid gap-1 rounded-control bg-sunken px-3 py-2">
+          <span className="text-xs text-ink-2">Approver’s note</span>
+          <span className="text-ink">{brief.decisionComment}</span>
+        </p>
+      )}
+      {brief.status === 'approved' && <p className="text-ink-2">This brief is final.</p>}
+      {brief.status === 'draft' && permissions.submit && <p className="text-ink-2">Next: check the AI review, then submit it for human review.</p>}
+      {brief.status === 'in_review' && !myDecision && (
+        <p className="text-ink-2">{submittedByMe ? 'You submitted this brief. An approver or admin will decide on it.' : 'Waiting for a decision. The brief and its review are locked meanwhile.'}</p>
+      )}
+      {myDecision && (
+        <>
+          <p className="text-ink-2">Your decision. Read the brief and its review, then approve or request changes.</p>
+          {/* Below lg the decision form sits after the whole brief and review. */}
+          <a href="#decide" className="btn btn-tonal w-fit hover:no-underline lg:hidden">
+            Go to decision
+          </a>
+        </>
+      )}
+    </div>
+  );
+}
+
 type Props = {
   reviewReady: boolean;
   // An approver must be able to read the review before approving it.
@@ -75,26 +120,10 @@ export function WorkflowPanel({ wsId, brief, permissions, reviewReady, reviewSta
 
   return (
     <section aria-labelledby="workflow-heading" className="grid gap-4 py-2 lg:pl-4">
-      <div className="grid gap-2">
-        <p className="text-xs text-muted">Status</p>
-        <h2 id="workflow-heading" className="text-base font-medium">
-          <Status status={brief.status} />
-          <span className="sr-only">Status: {STATUS_TEXT[brief.status]}</span>
-        </h2>
+      {/* Below lg the page shows the status under the title instead (WorkflowStatus in BriefPage). */}
+      <div className="hidden lg:grid">
+        <WorkflowStatus brief={brief} permissions={permissions} headingId="workflow-heading" />
       </div>
-
-      {brief.status === 'changes_requested' && brief.decisionComment && (
-        <p className="grid gap-1 rounded-control bg-unclear-soft px-3 py-2">
-          <span className="text-xs text-ink-2">Changes requested</span>
-          <span className="text-ink">{brief.decisionComment}</span>
-        </p>
-      )}
-      {brief.status === 'approved' && (
-        <p className="text-ink-2">Approved{brief.decisionComment ? `: ${brief.decisionComment}` : '.'} This brief is final.</p>
-      )}
-      {brief.status === 'in_review' && (
-        <p className="text-ink-2">{submittedByMe ? 'You submitted this brief. An approver or admin will decide on it.' : 'Waiting for a decision. The brief and its review are locked meanwhile.'}</p>
-      )}
 
       {permissions.submit && reviewReady && reviewEditing && (
         <p role="status" className="note">Save or cancel your review edits before submitting.</p>
@@ -112,7 +141,7 @@ export function WorkflowPanel({ wsId, brief, permissions, reviewReady, reviewSta
       )}
 
       {mayDecide && (
-        <form onSubmit={sendBack} aria-label="Decide" className="grid gap-3">
+        <form id="decide" onSubmit={sendBack} aria-label="Decide" className="grid scroll-mt-6 gap-3">
           {reviewStatus === 'pending' && <p role="status" className="note">Approve becomes available once the review has loaded.</p>}
           {reviewStatus === 'error' && (
             <div role="status" className="note flex-wrap items-center justify-between">

@@ -73,6 +73,16 @@ describe('ReviewPanel', () => {
     expect(screen.getByText('Launch date unrealistic')).toBeTruthy();
   });
 
+  it('shows coverage of all seven areas, readable without colour', async () => {
+    serve(() => Response.json({ review: stored(), permissions: allowed }));
+    renderPanel();
+
+    const strip = await screen.findByRole('list', { name: 'Coverage of the seven brief areas' });
+    const items = strip.querySelectorAll('li');
+    expect(items).toHaveLength(7);
+    expect([...items].map((li) => li.textContent)).toContain('Budget: Missing');
+  });
+
   it('labels the offline fallback honestly', async () => {
     serve(() => Response.json({ review: stored({ model: 'fake' }), permissions: allowed }));
     renderPanel();

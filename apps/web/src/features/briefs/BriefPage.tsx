@@ -6,9 +6,9 @@ import { ApiError, deleteBrief, fetchBrief, isNotFound, updateBrief } from '../.
 import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
 import { BriefForm } from './BriefForm';
-import { ReviewFindings, ReviewPanel, useBriefReview } from './ReviewPanel';
+import { Disclosure, ReviewFindings, ReviewPanel, useBriefReview } from './ReviewPanel';
 import { SourceDownload } from './SourceDownload';
-import { WorkflowPanel } from './WorkflowPanel';
+import { WorkflowPanel, WorkflowStatus } from './WorkflowPanel';
 
 function saveError(err: unknown) {
   if (err instanceof ApiError && err.status === 409) return 'Someone else changed this brief. Copy your text, then reload to see their version.';
@@ -111,7 +111,7 @@ export function BriefPage() {
         {review?.review && <aside className="card p-5">
           <h2 className="mb-4 hidden font-medium lg:block">Findings from the last AI review</h2>
           <div className="hidden lg:block"><ReviewFindings review={review.review} /></div>
-          <details className="lg:hidden"><summary className="cursor-pointer font-medium">Findings from the last AI review</summary><div className="mt-4"><ReviewFindings review={review.review} /></div></details>
+          <div className="lg:hidden"><Disclosure title="Findings from the last AI review"><ReviewFindings review={review.review} /></Disclosure></div>
         </aside>}
         </div>
       </div>
@@ -130,7 +130,7 @@ export function BriefPage() {
           {permissions.edit && (
             <button type="button" className="btn btn-tonal" onClick={() => setEditingFrom(brief.version)}>
               <Pencil size={16} strokeWidth={1.5} aria-hidden />
-              Edit
+              Edit brief
             </button>
           )}
           {permissions.delete && !confirmingDelete && (
@@ -141,6 +141,10 @@ export function BriefPage() {
           )}
         </div>
       </header>
+
+      <div className="mb-6 border-y border-line py-4 lg:hidden">
+        <WorkflowStatus brief={brief} permissions={permissions} />
+      </div>
 
       {confirmingDelete && (
         <div role="group" aria-label="Confirm delete" className="note mb-4 flex-wrap items-center justify-between">

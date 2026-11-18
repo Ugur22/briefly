@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { fetchMe, fetchWorkspaces } from '../../lib/api';
 import { oktaAuth, sessionKey, useAuthState } from '../../lib/auth';
@@ -16,6 +16,18 @@ export function Wordmark() {
   );
 }
 
+// Every step around sign-in sits where the sign-in card sits, so the flow doesn't jump between corners.
+export function Waiting({ children }: { children: ReactNode }) {
+  return (
+    <main className="grid min-h-screen place-items-center p-6">
+      <div className="grid justify-items-center gap-3 text-muted">
+        <Wordmark />
+        <div>{children}</div>
+      </div>
+    </main>
+  );
+}
+
 function Sidebar({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const workspaces = useQuery({ queryKey: queryKeys.workspaces, queryFn: fetchWorkspaces });
 
@@ -27,7 +39,8 @@ function Sidebar({ email, onSignOut }: { email: string; onSignOut: () => void })
         <Wordmark />
       </NavLink>
 
-      <nav aria-label="Workspaces" className="col-span-2 row-start-2 -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:grid md:gap-0.5 md:overflow-visible md:px-0">
+      {/* The fade on the right edge says the row scrolls; a hard cut mid-word reads as a bug. */}
+      <nav aria-label="Workspaces" className="col-span-2 row-start-2 -mx-4 flex gap-1 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] md:mx-0 md:grid md:gap-0.5 md:overflow-visible md:px-0 md:[mask-image:none]">
         <p className="hidden px-2 pb-2 text-xs text-muted md:block">Workspaces</p>
         {workspaces.data?.map((ws) => (
           <NavLink
@@ -70,26 +83,24 @@ export function RequireSession() {
   const signedIn = authState?.isAuthenticated === true;
   const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe, enabled: signedIn && !signingOut });
 
-  if (signingOut) return <p className="p-8 text-muted">Signing out…</p>;
-  if (!authState) return <p className="p-8 text-muted">Loading…</p>;
+  if (signingOut) return <Waiting>Signing out…</Waiting>;
+  if (!authState) return <Waiting>Loading…</Waiting>;
 
   if (!signedIn) {
     return (
       <main className="grid min-h-screen place-items-center p-6">
         <div className="card grid w-full max-w-sm gap-4 p-8">
           <Wordmark />
-          <h1 className="text-xl font-medium">Review client briefs before work starts</h1>
+          <h1 className="font-doc text-[26px] leading-tight text-balance text-accent-hover">Review client briefs before work starts</h1>
           <p className="text-ink-2">Sign in with your agency account to see your workspaces.</p>
           <button type="button" className="btn btn-primary justify-center" onClick={() => oktaAuth.signInWithRedirect({ originalUri: location.pathname })}>
             Sign in with Okta
           </button>
+          <p className="text-xs text-muted">No access yet? Ask an admin to add you to Briefly.</p>
         </div>
       </main>
     );
   }
-
-  if (me.isPending) return <p className="p-8 text-muted">Setting up your account…</p>;
-  if (me.isError) return <p role="alert" className="alert m-8">Could not load your account.</p>;
 
   // Unmount the data views first so nothing refetches into the cache we're about to clear.
   const signOut = async () => {
@@ -102,6 +113,26 @@ export function RequireSession() {
     }
     await oktaAuth.signOut({ clearTokensBeforeRedirect: true });
   };
+
+  if (me.isPending) return <Waiting>Setting up your account…</Waiting>;
+  if (me.isError) {
+    // First screen after sign-in: give a way forward and a way out, not a dead end.
+    return (
+      <Waiting>
+        <div className="grid justify-items-center gap-3">
+          <p role="alert" className="alert">Your sign-in worked, but Briefly could not load your account.</p>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" onClick={() => void me.refetch()}>
+              Try again
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </Waiting>
+    );
+  }
 
   return (
     // content-start: on mobile a short page would otherwise stretch the top bar to fill min-h-screen.

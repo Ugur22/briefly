@@ -1,5 +1,5 @@
 import { BRIEF_BODY_MAX, BRIEF_TITLE_MAX } from '@briefly/contracts';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 
 type Props = {
   initial: { title: string; body: string };
@@ -13,6 +13,7 @@ type Props = {
 export function BriefForm({ initial, submitLabel, pending, onSubmit, onCancel }: Props) {
   const [title, setTitle] = useState(initial.title);
   const [body, setBody] = useState(initial.body);
+  const hintId = useId();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -35,8 +36,8 @@ export function BriefForm({ initial, submitLabel, pending, onSubmit, onCancel }:
           maxLength={BRIEF_BODY_MAX}
         />
       </label>
-      <div className="flex gap-2">
-        <button type="submit" className="btn btn-primary" disabled={pending || title.trim() === ''}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="submit" className="btn btn-primary" disabled={pending || title.trim() === ''} aria-describedby={title.trim() === '' ? hintId : undefined}>
           {pending ? 'Saving…' : submitLabel}
         </button>
         {onCancel && (
@@ -44,6 +45,8 @@ export function BriefForm({ initial, submitLabel, pending, onSubmit, onCancel }:
             Cancel
           </button>
         )}
+        {/* A disabled button should say why. */}
+        {title.trim() === '' && <span id={hintId} className="text-xs text-muted">Add a title to continue.</span>}
       </div>
     </form>
   );

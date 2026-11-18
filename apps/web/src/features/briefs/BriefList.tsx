@@ -28,11 +28,14 @@ export function BriefList({ wsId }: { wsId: string }) {
       </div>
 
       {data.briefs.length === 0 ? (
-        <p className="card px-5 py-12 text-center text-ink-2">No briefs yet.</p>
+        <div className="card grid gap-1 px-5 py-12 text-center">
+          <p className="font-medium">No briefs yet.</p>
+          {data.permissions.create && <p className="text-ink-2">Paste or upload a client brief to check it against the seven areas.</p>}
+        </div>
       ) : (
         <ul className="divide-y divide-line border-y border-line">
           {data.briefs.map((b) => (
-            <li key={b.id} className="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-2 py-3 hover:bg-accent-soft md:grid-cols-[minmax(0,1fr)_8rem_auto]">
+            <li key={b.id} className="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-2 py-3 hover:bg-accent-soft md:grid-cols-[minmax(0,1fr)_10rem_auto]">
               <Link to={`/w/${wsId}/briefs/${b.id}`} className="truncate font-doc text-lg text-accent-hover hover:underline">
                 {b.title}
               </Link>

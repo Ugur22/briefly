@@ -14,7 +14,8 @@ type Screen = {
 };
 
 const button = (name: string) => (page: Page) => page.getByRole('button', { name, exact: true });
-const text = (t: string | RegExp) => (page: Page) => page.getByText(t).first();
+// Visible only: the brief status renders twice (under the title below lg, in the side column above it).
+const text = (t: string | RegExp) => (page: Page) => page.getByText(t).filter({ visible: true }).first();
 const heading = (name: string) => (page: Page) => page.getByRole('heading', { name, exact: true });
 // Locked screens render the status column before the review arrives; wait for both.
 const withReview = (ready: (page: Page) => Locator) => (page: Page) => [ready(page), heading('Questions for the client')(page)];
@@ -45,7 +46,7 @@ const screens: Screen[] = [
     name: 'brief-edit',
     path: briefPath('reviewed'),
     routes: briefRoutes('reviewed', 'done'),
-    act: async (page) => page.getByRole('button', { name: 'Edit', exact: true }).click(),
+    act: async (page) => page.getByRole('button', { name: 'Edit brief', exact: true }).click(),
     ready: heading('Edit brief'),
   },
   { name: 'brief-in-review-approver', path: briefPath('inReview'), routes: briefRoutes('inReview', 'locked'), ready: withReview(button('Approve')) },
@@ -115,7 +116,7 @@ test('updates an outdated assessment before human submission', async ({ page }, 
   await expect(submit).toHaveCount(0);
   await update.click();
   await expect(submit).toBeVisible();
-  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit brief', exact: true }).click();
   if (testInfo.project.name === 'mobile') await page.locator('summary').filter({ hasText: 'Findings from the last AI review' }).click();
   await expect(page.getByText('What budget range should we plan media and production against?').filter({ visible: true })).toBeVisible();
 });

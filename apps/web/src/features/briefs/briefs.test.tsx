@@ -112,7 +112,7 @@ describe('editing a brief', () => {
     });
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit brief' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Spring launch v2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -127,7 +127,7 @@ describe('editing a brief', () => {
     });
     const client = renderAt(`/w/${wsId}/briefs/${briefId}`);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit brief' }));
     // Someone else saved v4 and a refetch (window focus, staleTime) put it in the cache mid-edit.
     client.setQueryData(['ws', wsId, 'briefs', briefId], { brief: { ...brief, version: 4 }, permissions: { edit: true, delete: false, submit: true, decide: false } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -143,7 +143,7 @@ describe('editing a brief', () => {
     });
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit brief' }));
     fireEvent.change(screen.getByLabelText('Brief'), { target: { value: 'My unsaved rewrite' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -157,7 +157,7 @@ describe('editing a brief', () => {
     renderAt(`/w/${wsId}/briefs/${briefId}`);
 
     expect(await screen.findByText(brief.body)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit brief' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 });

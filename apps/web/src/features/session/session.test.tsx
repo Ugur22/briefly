@@ -70,6 +70,21 @@ describe('RequireSession', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/me');
   });
 
+  it('offers a retry when the account cannot be loaded, and recovers', async () => {
+    okta.authState = { isAuthenticated: true };
+    const me = Response.json({ id: '11111111-1111-4111-8111-111111111111', email: 'alice@test.dev' });
+    const fetchMock = vi.fn(async () => new Response(null, { status: 500 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/');
+    expect(await screen.findByText(/could not load your account/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
+    fetchMock.mockImplementation(async () => me.clone());
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('home')).toBeTruthy();
+  });
+
   it('clears the cache before signing out', async () => {
     okta.authState = { isAuthenticated: true };
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ id: '11111111-1111-4111-8111-111111111111', email: 'alice@test.dev' })));
