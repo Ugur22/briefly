@@ -6,6 +6,7 @@ import { parseJson, reviewRequest, SYSTEM } from './review-prompt';
 import type { ReviewGenerator } from '../application/generate-review';
 
 export const REVIEW_MODEL = 'claude-opus-5-5';
+export const REVIEW_EFFORT = 'low';
 
 // `fetch` is for tests: they answer with canned API responses, so CI never calls the real model.
 export type ClaudeOptions = { apiKey: string; log: FastifyBaseLogger; timeoutMs?: number; fetch?: typeof fetch };
@@ -23,7 +24,7 @@ export function claudeReviewGenerator({ apiKey, log, timeoutMs = 50_000, fetch }
         max_tokens: 16_000,
         system: SYSTEM,
         messages: [{ role: 'user', content: reviewRequest(title, body) }],
-        output_config: { format: zodOutputFormat(ModelReview), effort: 'low' },
+        output_config: { format: zodOutputFormat(ModelReview), effort: REVIEW_EFFORT },
       });
       const meta = { model: response.model, stop: response.stop_reason, usage: response.usage, ms: Math.round(performance.now() - started) };
       if (response.stop_reason === 'refusal') {

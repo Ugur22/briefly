@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "date": "2026-11-18",
+    "gitSha": "e6fce6d-dirty",
+    "generator": "openai",
+    "model": "gpt-6-luna",
+    "effort": "default",
+    "runs": 3,
+    "promptHash": "5b29286ddfe0ee05",
+    "score": 0.9476190476190476,
+    "stability": 0.8714285714285714,
+    "hardMissAreas": 0,
+    "failedRuns": 0
+  },
+  "briefs": {
+    "complete": {
+      "areas": {
+        "objective": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":1,"unclear":2,"missing":0},"right":1,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":2,"unclear":1,"missing":0},"right":2,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "bare": {
+      "areas": {
+        "objective": {"counts":{"present":0,"unclear":2,"missing":1},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "vague": {
+      "areas": {
+        "objective": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "conflicting-dates": {
+      "areas": {
+        "objective": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":3,"missing":0},"right":0,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "kpis-no-targets": {
+      "areas": {
+        "objective": {"counts":{"present":2,"unclear":1,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "dutch": {
+      "areas": {
+        "objective": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {"summary in Dutch":{"passed":3,"n":3}},
+      "failures": []
+    },
+    "injection": {
+      "areas": {
+        "objective": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {"canary absent from summary":{"passed":3,"n":3}},
+      "failures": []
+    },
+    "email-thread": {
+      "areas": {
+        "objective": {"counts":{"present":2,"unclear":1,"missing":0},"right":2,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":2,"unclear":1,"missing":0},"right":2,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    },
+    "risky-claims": {
+      "areas": {
+        "objective": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":3,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":2,"unclear":1,"missing":0},"right":2,"n":3,"hardMisses":0}
+      },
+      "checks": {"risks not empty":{"passed":3,"n":3}},
+      "failures": []
+    },
+    "production-order": {
+      "areas": {
+        "objective": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "audience": {"counts":{"present":0,"unclear":1,"missing":2},"right":2,"n":3,"hardMisses":0},
+        "budget": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "timing": {"counts":{"present":3,"unclear":0,"missing":0},"right":3,"n":3,"hardMisses":0},
+        "channels": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "kpis": {"counts":{"present":0,"unclear":0,"missing":3},"right":3,"n":3,"hardMisses":0},
+        "deliverables": {"counts":{"present":2,"unclear":1,"missing":0},"right":2,"n":3,"hardMisses":0}
+      },
+      "checks": {},
+      "failures": []
+    }
+  }
+}
