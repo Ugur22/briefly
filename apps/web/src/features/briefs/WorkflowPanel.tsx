@@ -27,11 +27,21 @@ const ERRORS: Record<string, string> = {
 };
 const message = (err: unknown) => (err instanceof ApiError && err.code && ERRORS[err.code]) || 'That did not work. Try again.';
 
-type Props = { reviewReady: boolean; wsId: string; brief: Brief; permissions: BriefPermissions };
+type Props = {
+  reviewReady: boolean;
+  // An approver must be able to read the review before approving it.
+  reviewStatus: 'pending' | 'error' | 'success';
+  onRetryReview: () => void;
+  // Submitting sends the last saved review, so unsaved edits would silently not reach the approver.
+  reviewEditing: boolean;
+  wsId: string;
+  brief: Brief;
+  permissions: BriefPermissions;
+};
 
 // Where the brief stands, and the one or two actions that move it on. The database enforces every rule here;
 // this only decides what to offer and explains refusals.
-export function WorkflowPanel({ wsId, brief, permissions, reviewReady }: Props) {
+export function WorkflowPanel({ wsId, brief, permissions, reviewReady, reviewStatus, onRetryReview, reviewEditing }: Props) {
   const queryClient = useQueryClient();
   const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe });
   const [comment, setComment] = useState('');
@@ -86,7 +96,10 @@ export function WorkflowPanel({ wsId, brief, permissions, reviewReady }: Props) 
         <p className="text-ink-2">{submittedByMe ? 'You submitted this brief. An approver or admin will decide on it.' : 'Waiting for a decision. The brief and its review are locked meanwhile.'}</p>
       )}
 
-      {permissions.submit && reviewReady && (
+      {permissions.submit && reviewReady && reviewEditing && (
+        <p role="status" className="note">Save or cancel your review edits before submitting.</p>
+      )}
+      {permissions.submit && reviewReady && !reviewEditing && (
         <button type="button" className="btn btn-primary justify-center" onClick={() => submit.mutate()} disabled={submit.isPending}>
           <Send size={16} strokeWidth={1.5} aria-hidden />
           {submit.isPending ? 'Submitting…' : brief.status === 'changes_requested' ? 'Resubmit for human review' : 'Submit for human review'}
@@ -100,7 +113,16 @@ export function WorkflowPanel({ wsId, brief, permissions, reviewReady }: Props) 
 
       {mayDecide && (
         <form onSubmit={sendBack} aria-label="Decide" className="grid gap-3">
-          <button type="button" className="btn btn-primary justify-center" onClick={() => decide.mutate('approve')} disabled={decide.isPending}>
+          {reviewStatus === 'pending' && <p role="status" className="note">Approve becomes available once the review has loaded.</p>}
+          {reviewStatus === 'error' && (
+            <div role="status" className="note flex-wrap items-center justify-between">
+              <span>The review could not be loaded, so it cannot be approved yet.</span>
+              <button type="button" className="btn btn-ghost" onClick={onRetryReview}>
+                Try again
+              </button>
+            </div>
+          )}
+          <button type="button" className="btn btn-primary justify-center" onClick={() => decide.mutate('approve')} disabled={decide.isPending || reviewStatus !== 'success'}>
             <Check size={16} strokeWidth={1.5} aria-hidden />
             Approve
           </button>

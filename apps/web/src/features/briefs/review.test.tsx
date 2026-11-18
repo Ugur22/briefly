@@ -44,12 +44,12 @@ function serve(handler: (method: string, body: unknown) => Response) {
 const author = Me.parse({ id: '00000000-0000-4000-8000-000000000001', email: 'author@example.test' });
 const teammate = Me.parse({ id: '00000000-0000-4000-8000-000000000002', email: 'teammate@example.test' });
 
-function renderPanel(account = author) {
+function renderPanel(account = author, onEditingChange?: (editing: boolean) => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(queryKeys.me, account);
   return render(
     <QueryClientProvider client={client}>
-      <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={2} />
+      <ReviewPanel wsId={wsId} briefId={briefId} briefVersion={2} onEditingChange={onEditingChange} />
     </QueryClientProvider>,
   );
 }
@@ -116,6 +116,31 @@ describe('ReviewPanel', () => {
 
     expect(await screen.findByText('Edited summary')).toBeTruthy();
     expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({ briefVersion: 2, review: { summary: 'Edited summary' } });
+  });
+
+  it('tells the page while review edits are open, so it can hold back Submit', async () => {
+    serve(() => Response.json({ review: stored(), permissions: allowed }));
+    const onEditingChange = vi.fn();
+    renderPanel(author, onEditingChange);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit review' }));
+    expect(onEditingChange).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('reports a draft restored after a reload as open edits, and clears it on unmount', async () => {
+    serve(() => Response.json({ review: stored(), permissions: allowed }));
+    const first = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit review' }));
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Unsaved summary' } });
+    first.unmount();
+
+    const onEditingChange = vi.fn();
+    const second = renderPanel(author, onEditingChange);
+    expect(onEditingChange).toHaveBeenLastCalledWith(true);
+    second.unmount();
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
   });
 
   it('shows the previous review after a failed regenerate, instead of losing it', async () => {

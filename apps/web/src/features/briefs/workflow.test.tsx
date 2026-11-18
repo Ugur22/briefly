@@ -39,10 +39,20 @@ function serve(handler: (url: string, body: unknown) => Response) {
   return calls;
 }
 
-function renderPanel(brief: Brief, permissions: BriefPermissions) {
+type ReviewState = { status: 'pending' | 'error' | 'success'; editing: boolean; retry?: () => void };
+
+function renderPanel(brief: Brief, permissions: BriefPermissions, review: ReviewState = { status: 'success', editing: false }) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <WorkflowPanel reviewReady wsId={wsId} brief={brief} permissions={permissions} />
+      <WorkflowPanel
+        reviewReady
+        reviewStatus={review.status}
+        onRetryReview={review.retry ?? (() => {})}
+        reviewEditing={review.editing}
+        wsId={wsId}
+        brief={brief}
+        permissions={permissions}
+      />
     </QueryClientProvider>,
   );
 }
@@ -92,6 +102,33 @@ describe('WorkflowPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
 
     await vi.waitFor(() => expect(calls.find((c) => c.url === `${api}/decision`)?.body).toEqual({ decision: 'approve' }));
+  });
+
+  it('holds back Submit while review edits are unsaved', () => {
+    serve(() => new Response(null, { status: 404 }));
+    renderPanel(base, { ...none, edit: true, submit: true }, { status: 'success', editing: true });
+
+    expect(screen.queryByRole('button', { name: 'Submit for human review' })).toBeNull();
+    expect(screen.getByText(/Save or cancel your review edits/)).toBeTruthy();
+  });
+
+  it('keeps Approve disabled until the approver can see the review', async () => {
+    serve(() => new Response(null, { status: 404 }));
+    renderPanel({ ...base, status: 'in_review', submittedBy: otherId }, { ...none, decide: true }, { status: 'pending', editing: false });
+
+    const approve = await screen.findByRole('button', { name: 'Approve' });
+    expect((approve as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/once the review has loaded/)).toBeTruthy();
+  });
+
+  it('offers a retry instead of a dead Approve when the review fails to load', async () => {
+    serve(() => new Response(null, { status: 404 }));
+    const retry = vi.fn();
+    renderPanel({ ...base, status: 'in_review', submittedBy: otherId }, { ...none, decide: true }, { status: 'error', editing: false, retry });
+
+    expect(((await screen.findByRole('button', { name: 'Approve' })) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalled();
   });
 
   it('never offers a decision to whoever submitted the brief', async () => {

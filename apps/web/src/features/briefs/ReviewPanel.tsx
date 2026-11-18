@@ -1,7 +1,7 @@
 import { REVIEW_AREAS, type AreaStatus, type BriefReview, type Review, type ReviewArea } from '@briefly/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle, Pencil, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ApiError, fetchMe, fetchReview, generateReview, saveReview } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
@@ -114,7 +114,7 @@ export function useBriefReview(wsId: string, briefId: string, enabled = true) {
 
 }
 
-type PanelProps = { wsId: string; briefId: string; briefVersion: number };
+type PanelProps = { wsId: string; briefId: string; briefVersion: number; onEditingChange?: (editing: boolean) => void };
 
 export function ReviewPanel(props: PanelProps) {
   const me = useQuery({ queryKey: queryKeys.me, queryFn: fetchMe, enabled: false });
@@ -122,10 +122,16 @@ export function ReviewPanel(props: PanelProps) {
   return <ScopedReviewPanel key={scope} {...props} storageKey={me.data?.id ? `briefly:review-draft:${scope}` : undefined} />;
 }
 
-function ScopedReviewPanel({ wsId, briefId, briefVersion, storageKey }: PanelProps & { storageKey?: string }) {
+function ScopedReviewPanel({ wsId, briefId, briefVersion, storageKey, onEditingChange }: PanelProps & { storageKey?: string }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => readDraft(storageKey));
   const editing = draft !== null;
+  // A draft restored from storage counts too: it is unsaved work the approver would not see.
+  // Layout effect, so Submit is never painted for a frame before a restored draft hides it.
+  useLayoutEffect(() => {
+    onEditingChange?.(editing);
+    return () => onEditingChange?.(false);
+  }, [editing, onEditingChange]);
   function updateDraft(next: ReviewDraft | null) {
     storeDraft(storageKey, next);
     setDraft(next);
