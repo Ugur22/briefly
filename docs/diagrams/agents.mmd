@@ -1,0 +1,19 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#ffffff","primaryBorderColor":"#2b59c3","primaryTextColor":"#1f2a2e","lineColor":"#5b6b70","edgeLabelBackground":"#f3f6f6","clusterBkg":"#eef3f3","clusterBorder":"#9fb3b6"}}}%%
+flowchart TB
+  lead[Lead session<br/>plans, edits, runs checks]
+  advisor[advisor · Opus<br/>reviews plans and<br/>auth / RLS changes]
+  designer[ui-designer · Opus<br/>design research,<br/>screenshot critique]
+  subgraph devs [Developers · Sonnet]
+    direction LR
+    fe[frontend-developer<br/>apps/web]
+    be[backend-developer<br/>apps/api, contracts]
+    dbdev[db-developer<br/>supabase/]
+  end
+  check{{bun run check + Playwright screens}}
+  reviewer[reviewer · Sonnet<br/>reads the diff,<br/>reports to the lead]
+
+  lead <-- plan review --> advisor
+  lead -- delegates --> devs
+  lead <-- design direction --> designer
+  devs --> check
+  check --> reviewer
