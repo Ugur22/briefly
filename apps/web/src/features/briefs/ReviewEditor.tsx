@@ -1,7 +1,7 @@
 import { AreaStatus, REVIEW_AREAS, REVIEW_LIMITS, Review } from '@briefly/contracts';
 import { useState, type FormEvent } from 'react';
 import type { ReviewFields } from './reviewDraft';
-import { AREA_LABELS, STATUS_LABELS } from './ReviewPanel';
+import { AREA_LABELS, FILL, STATUS_LABELS } from './ReviewPanel';
 
 // Lists are edited one item per line; empty lines are dropped.
 const fromLines = (text: string) =>
@@ -40,13 +40,15 @@ export function ReviewEditor({ review, pending, readOnly, onChange, onSave, onCa
       )}
       <label className="label">
         Summary
-        <textarea readOnly={readOnly || pending} className="textarea font-normal" value={review.summary} maxLength={REVIEW_LIMITS.summary} rows={3} onChange={(e) => onChange({ ...review, summary: e.target.value })} />
+        <textarea readOnly={readOnly || pending} className="textarea field-sizing-content font-normal" value={review.summary} maxLength={REVIEW_LIMITS.summary} rows={3} onChange={(e) => onChange({ ...review, summary: e.target.value })} />
       </label>
       <div className="grid divide-y divide-line border-y border-line">
         {REVIEW_AREAS.map((area) => (
-          <fieldset key={area} className="grid items-center gap-2 py-3 sm:grid-cols-[120px_140px_minmax(0,1fr)] sm:gap-3">
+          <fieldset key={area} className="grid items-start gap-2 py-3 sm:grid-cols-[120px_140px_minmax(0,1fr)] sm:gap-3">
             <legend className="sr-only">{AREA_LABELS[area]}</legend>
-            <span aria-hidden className="font-medium">
+            {/* mt-5 = the small label line plus its gap, so the name lines up with the controls, not the row. */}
+            <span aria-hidden className="flex items-center gap-2 font-medium sm:mt-5 sm:h-9">
+              <span className={`size-2 shrink-0 rounded-full ${FILL[review.areas[area].status]}`} />
               {AREA_LABELS[area]}
             </span>
             <label className="grid gap-1 text-xs text-muted">
@@ -65,11 +67,21 @@ export function ReviewEditor({ review, pending, readOnly, onChange, onSave, onCa
             </label>
             <label className="grid gap-1 text-xs text-muted">
               Note
-              <input readOnly={readOnly || pending}
-                className="input text-sm"
+              {/* Notes run to a sentence or two; a single-line input would cut them off mid-word. Still one paragraph:
+                  the read view collapses line breaks, so Enter submits instead and pasted breaks become spaces.
+                  rows=2 is the fallback where field-sizing is unsupported. */}
+              <textarea readOnly={readOnly || pending}
+                className="textarea field-sizing-content min-h-9 resize-none py-1.5 text-sm"
+                rows={2}
                 value={review.areas[area].note}
                 maxLength={REVIEW_LIMITS.note}
-                onChange={(e) => onChange({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], note: e.target.value } } })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                onChange={(e) => onChange({ ...review, areas: { ...review.areas, [area]: { ...review.areas[area], note: e.target.value.replace(/\s*\n\s*/g, ' ') } } })}
               />
             </label>
           </fieldset>
@@ -77,11 +89,11 @@ export function ReviewEditor({ review, pending, readOnly, onChange, onSave, onCa
       </div>
       <label className="label">
         Questions for the client (one per line)
-        <textarea readOnly={readOnly || pending} className="textarea font-normal" value={review.questions} rows={4} onChange={(e) => onChange({ ...review, questions: e.target.value })} />
+        <textarea readOnly={readOnly || pending} className="textarea field-sizing-content font-normal" value={review.questions} rows={4} onChange={(e) => onChange({ ...review, questions: e.target.value })} />
       </label>
       <label className="label">
         Risks (one per line)
-        <textarea readOnly={readOnly || pending} className="textarea font-normal" value={review.risks} rows={3} onChange={(e) => onChange({ ...review, risks: e.target.value })} />
+        <textarea readOnly={readOnly || pending} className="textarea field-sizing-content font-normal" value={review.risks} rows={3} onChange={(e) => onChange({ ...review, risks: e.target.value })} />
       </label>
       <div className="flex gap-2">
         {!readOnly && <button type="submit" className="btn btn-primary" disabled={pending}>

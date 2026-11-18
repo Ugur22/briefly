@@ -1,7 +1,7 @@
 import { REVIEW_AREAS, type AreaStatus, type BriefReview, type Review, type ReviewArea } from '@briefly/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LoaderCircle, Pencil, RefreshCw } from 'lucide-react';
-import { useLayoutEffect, useState } from 'react';
+import { ChevronRight, LoaderCircle, Pencil, RefreshCw } from 'lucide-react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { ApiError, fetchMe, fetchReview, generateReview, saveReview } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { queryKeys } from '../../lib/queryKeys';
@@ -20,7 +20,7 @@ export const AREA_LABELS: Record<ReviewArea, string> = {
 export const STATUS_LABELS: Record<AreaStatus, string> = { present: 'Present', unclear: 'Unclear', missing: 'Missing' };
 
 // The one place on the screen with several hues, and each means something.
-const FILL: Record<AreaStatus, string> = { present: 'bg-present', unclear: 'bg-unclear', missing: 'bg-missing' };
+export const FILL: Record<AreaStatus, string> = { present: 'bg-present', unclear: 'bg-unclear', missing: 'bg-missing' };
 
 const FAILURES: Record<string, string> = {
   refused: 'The model declined to review this brief.',
@@ -58,13 +58,44 @@ function AreaRows({ review, areas }: { review: Review; areas: ReviewArea[] }) {
   );
 }
 
+// The one rich moment: all seven areas at a glance, one row when the container is wide, 4 + 3 when it is not, so
+// the labels always fit. The same statuses are in text below, so the strip never carries meaning alone.
+function CoverageStrip({ review }: { review: Review }) {
+  return (
+    <ol aria-label="Coverage of the seven brief areas" className="grid grid-cols-4 gap-x-2 gap-y-3 @lg:grid-cols-7 @lg:gap-x-1">
+      {REVIEW_AREAS.map((area) => (
+        <li key={area} className="grid min-w-0 gap-1.5">
+          <span className={`h-1.5 rounded-full ${FILL[review.areas[area].status]}`} aria-hidden />
+          <span className="truncate text-xs text-muted">{AREA_LABELS[area]}</span>
+          <span className="sr-only">: {STATUS_LABELS[review.areas[area].status]}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function Disclosure({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="group">
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 font-medium [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={16} strokeWidth={1.5} className="text-muted transition-transform duration-150 ease-out group-open:rotate-90" aria-hidden />
+        {title}
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
+// Verdict first: the count, the strip, the AI's summary, then what is open and what to ask.
 export function ReviewFindings({ review }: { review: Review }) {
   const missing = REVIEW_AREAS.filter(area => review.areas[area].status === 'missing');
   const unclear = REVIEW_AREAS.filter(area => review.areas[area].status === 'unclear');
   const open = [...missing, ...unclear];
   return (
-    <div className="grid gap-4">
+    <div className="@container grid gap-4">
       <h3 className="text-lg font-semibold">{open.length ? `${missing.length} missing · ${unclear.length} unclear` : 'All areas covered'}</h3>
+      <CoverageStrip review={review} />
+      <p className="max-w-[68ch]">{review.summary}</p>
       {open.length > 0 && <AreaRows review={review} areas={open} />}
       {review.questions.length > 0 && (
         <div className="grid gap-2">
@@ -81,8 +112,7 @@ function ReviewView({ review }: { review: Review }) {
   return (
     <div className="grid gap-5">
       <ReviewFindings review={review} />
-      {covered.length > 0 && <details><summary className="cursor-pointer font-medium">Already covered ({covered.length})</summary><AreaRows review={review} areas={covered} /></details>}
-      <p>{review.summary}</p>
+      {covered.length > 0 && <Disclosure title={`Already covered (${covered.length})`}><AreaRows review={review} areas={covered} /></Disclosure>}
       {review.risks.length > 0 && (
         <div className="grid gap-2">
           <h3 className="font-medium">Risks</h3>
@@ -231,7 +261,7 @@ function ScopedReviewPanel({ wsId, briefId, briefVersion, storageKey, onEditingC
         </p>
       )}
       {review?.outdated && shown && (
-        <p role="note" className="rounded-control bg-unclear-soft px-3 py-2 text-ink">
+        <p role="note" className="note text-ink">
           The brief changed after this review. Regenerate it to review the current text.
         </p>
       )}

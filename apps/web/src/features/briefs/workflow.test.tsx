@@ -94,6 +94,15 @@ describe('WorkflowPanel', () => {
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
   });
 
+  it('tells an approver the decision is theirs, not that they are waiting', async () => {
+    serve(() => new Response(null, { status: 404 }));
+    renderPanel({ ...base, status: 'in_review', submittedBy: otherId }, { ...none, decide: true });
+
+    expect(await screen.findByText(/Your decision/)).toBeTruthy();
+    expect(screen.queryByText(/Waiting for a decision/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Go to decision' }).getAttribute('href')).toBe('#decide');
+  });
+
   it('approves without sending a half-typed send-back comment', async () => {
     const calls = serve(() => Response.json({ brief: { ...base, status: 'approved' }, permissions: none }));
     renderPanel({ ...base, status: 'in_review', submittedBy: otherId }, { ...none, decide: true });
@@ -145,6 +154,22 @@ describe('WorkflowPanel', () => {
 
     expect(screen.getByText('Add the launch date.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Resubmit for human review' })).toBeTruthy();
+  });
+
+  it('keeps the approver’s note apart from the final-state message', () => {
+    serve(() => new Response(null, { status: 404 }));
+    renderPanel({ ...base, status: 'approved', decisionComment: 'Go ahead, brief the client on Monday' }, none);
+
+    expect(screen.getByText('Approver’s note')).toBeTruthy();
+    expect(screen.getByText('Go ahead, brief the client on Monday')).toBeTruthy();
+    expect(screen.getByText('This brief is final.')).toBeTruthy();
+  });
+
+  it('tells whoever can submit a draft what comes next', () => {
+    serve(() => new Response(null, { status: 404 }));
+    renderPanel(base, { ...none, edit: true, submit: true });
+
+    expect(screen.getByText(/Next: check the AI review/)).toBeTruthy();
   });
 
   it('marks an approved brief as final, with nothing to do', () => {

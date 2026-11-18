@@ -7,10 +7,11 @@ export const STATUS_TEXT: Record<BriefStatus, string> = {
   changes_requested: 'Changes requested',
 };
 
-// The dot carries the meaning: grey draft, teal in review, sage approved, amber sent back.
+// Shape says where the brief is in its life (open ring, heavy ring, filled), so status never rests on hue alone.
+// Teal stays reserved for actions; only the finished states get a colour.
 const DOT: Record<BriefStatus, string> = {
-  draft: 'bg-muted',
-  in_review: 'bg-accent',
+  draft: 'border border-muted',
+  in_review: 'border-[2.5px] border-ink-2',
   approved: 'bg-present',
   changes_requested: 'bg-unclear',
 };
@@ -18,7 +19,7 @@ const DOT: Record<BriefStatus, string> = {
 export function Status({ status }: { status: BriefStatus }) {
   return (
     <span className="inline-flex items-center gap-2 text-ink-2">
-      <span className={`size-2 rounded-full ${DOT[status]}`} aria-hidden />
+      <span className={`size-2.5 shrink-0 rounded-full ${DOT[status]}`} aria-hidden />
       {STATUS_TEXT[status]}
     </span>
   );
