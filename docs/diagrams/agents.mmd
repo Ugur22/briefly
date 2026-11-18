@@ -9,11 +9,16 @@ flowchart TB
     be[backend-developer<br/>apps/api, contracts]
     dbdev[db-developer<br/>supabase/]
   end
-  check{{bun run check + Playwright screens}}
+  gate{{Stop hook + handback gate<br/>bun run check must be green<br/>3 blocks, then a visible give-up}}
   reviewer[reviewer · Sonnet<br/>reads the diff,<br/>reports to the lead]
+  ledger[(Failure ledger<br/>.harness/failures.jsonl)]
+  graders[Read-only for agents<br/>hooks, check scripts, CI,<br/>AI-review golden set]
 
   lead <-- plan review --> advisor
   lead -- delegates --> devs
   lead <-- design direction --> designer
-  devs --> check
-  check --> reviewer
+  devs -- hand back --> gate
+  lead -- finish a turn --> gate
+  gate -- green --> reviewer
+  gate -. blocks, give-ups,<br/>recoveries .-> ledger
+  graders -. define .-> gate

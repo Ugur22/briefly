@@ -43,9 +43,11 @@ Briefly checks client campaign briefs before work starts. Paste a brief or uploa
 
 ## How it was built
 
-Briefly is built with Claude Code. A lead session plans and edits; scoped subagents (in `.claude/agents`) each own one part of the stack, and read-only agents review. A hook runs `bun run check` before any turn can finish.
+Briefly is built with Claude Code. A lead session plans and edits; scoped subagents (in `.claude/agents`) each own one part of the stack, and read-only agents review. A hook runs `bun run check` before any turn can finish, and before a worktree agent can hand back its report; it blocks at most 3 times, then lets the turn end with a visible "not done" warning.
 
-![Agent workflow: lead, advisor, ui-designer, developers, checks and reviewer](docs/diagrams/agents.png)
+The graders are read-only for agents: the hooks, the `check` scripts, CI and the AI-review golden set are deny-listed in `.claude/settings.json`, so an agent can't pass a check by editing it. Every block, give-up and recovery is logged to a local failure ledger (`.harness/failures.jsonl`, summarised by `scripts/ledger-report.sh`), which is the data any later change to the harness has to start from.
+
+![Agent workflow: lead, advisor, ui-designer, developers, the check gate, reviewer, failure ledger and read-only graders](docs/diagrams/agents.png)
 
 ## Running locally
 
@@ -63,10 +65,12 @@ The API also runs in a container: `docker compose up --build api`, then `curl lo
 ## Checks
 
 ```sh
-bun run check          # file sizes, RLS coverage, then lint, typecheck, test and build for every project
+bun run check          # file sizes, RLS coverage, untested domain code, then lint, typecheck, test and build for every project
 bunx supabase test db  # pgTAP: RLS and workflow tests against a local database
 bun run visual         # Playwright: every screen at 400px and 1280px, with axe and overflow checks
 ```
+
+The AI review has a golden set: 10 synthetic briefs with expected verdicts per area, in `apps/api/scripts/review-eval/`. `bun run --cwd apps/api eval:review` runs them through the real model (keys from `.env`) and compares the verdicts with the saved baseline for that model; it runs by hand only, never in CI or `check`.
 
 The Playwright run needs no Okta or API: sessions are seeded and `/api` is mocked in the browser. The screenshots above come from `README_SHOTS=1 bunx playwright test e2e/readme.spec.ts` in `apps/web`; the diagrams are rendered from `docs/diagrams/*.mmd`:
 
