@@ -77,6 +77,7 @@ describe('uploading a brief', () => {
     [422, 'no_text', /No text found/],
     [415, 'unsupported_type', /Only PDF and Word/],
     [503, 'busy', /Try again in a moment/],
+    [429, 'rate_limited', /upload limit for now/],
   ])('explains a %i %s refusal', async (status, error, message) => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error }, { status })));
     renderAt(`/w/${wsId}/briefs/new`);

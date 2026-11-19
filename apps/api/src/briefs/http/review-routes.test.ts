@@ -139,3 +139,72 @@ describe('review routes', () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe('review generation limits', () => {
+  const minute = 60_000;
+  const limits = { uploadPerUser: { max: 100, timeWindow: minute }, generatePerUser: { max: 2, timeWindow: minute }, generatePerWorkspace: { max: 3, timeWindow: minute } };
+  const limited = () => buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs, reviewsFor: () => reviews, generate, limits });
+  const post = async (app: ReturnType<typeof limited>, uid = '00uALICE', wsId = wsA) =>
+    app.inject({ method: 'POST', url: `/api/workspaces/${wsId}/briefs/${briefId}/review`, headers: { authorization: `Bearer ${await signToken({ uid })}` } });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    role = 'editor';
+    row = null;
+  });
+
+  it('answers 429 with Retry-After once a user is over their limit, without calling the model; others are unaffected', async () => {
+    const app = limited();
+    await post(app);
+    await post(app);
+
+    const res = await post(app);
+
+    expect(res.statusCode).toBe(429);
+    expect(res.json()).toEqual({ error: 'rate_limited' });
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect((await post(app, '00uBOB')).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('does not let a user stuck at their limit drain the workspace by retrying', async () => {
+    const app = limited();
+    await post(app, '00uALICE');
+    await post(app, '00uALICE');
+    for (let i = 0; i < 5; i++) expect((await post(app, '00uALICE')).statusCode).toBe(429);
+
+    expect((await post(app, '00uBOB')).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('refuses parallel requests past the limit even though they all passed the check', async () => {
+    const app = limited();
+    const codes = (await Promise.all([1, 2, 3, 4].map(() => post(app)))).map((r) => r.statusCode);
+
+    expect(codes.filter((c) => c === 200)).toHaveLength(2);
+    await app.close();
+  });
+
+  it('caps the workspace across users', async () => {
+    const app = limited();
+    await post(app, '00uALICE');
+    await post(app, '00uALICE');
+    await post(app, '00uBOB');
+
+    expect((await post(app, '00uCAROL')).statusCode).toBe(429);
+    await app.close();
+  });
+
+  it('does not count calls refused for role or membership', async () => {
+    const app = limited();
+    role = 'approver';
+    for (let i = 0; i < 3; i++) expect((await post(app)).statusCode).toBe(403);
+    for (let i = 0; i < 3; i++) expect((await post(app, '00uMALLORY', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')).statusCode).toBe(404);
+    role = 'editor';
+
+    expect((await post(app)).statusCode).toBe(200);
+    expect((await post(app)).statusCode).toBe(200);
+    await app.close();
+  });
+});

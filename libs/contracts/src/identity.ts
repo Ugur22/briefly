@@ -29,3 +29,6 @@ export const ApiErrorBody = z.object({
   error: z.string(),
 });
 export type ApiErrorBody = z.infer<typeof ApiErrorBody>;
+
+// The `error` of a 429 (with Retry-After) from the per-user and per-workspace limits on costly routes.
+export const RATE_LIMITED = 'rate_limited';

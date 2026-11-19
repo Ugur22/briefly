@@ -15,9 +15,21 @@ import { claudeReviewGenerator, fakeReviewGenerator } from './briefs/infra/claud
 import { openAIReviewGenerator } from './briefs/infra/openai-review-generator';
 import { reviewsRepo } from './briefs/infra/reviews-repo';
 import type { FastifyBaseLogger } from 'fastify';
-import { oktaJwks, registerAuth } from './platform/auth';
+import { isApiPath, oktaJwks, registerAuth } from './platform/auth';
+import { registerSecurityHeaders } from './platform/security-headers';
+import { loadWebApp, registerWebApp, serveIndex, type WebApp } from './platform/web-app';
+import { defaultLimits, registerRateLimit, type Limits } from './platform/rate-limit';
 import type { Config } from './platform/config';
 import { userClientFactory } from './platform/supabase';
+
+// As the router sees it (%61pi is api), so an encoded API path is never answered with the web app.
+const decodedPath = (url: string) => {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return url;
+  }
+};
 
 function loggerOptions(config: Config) {
   if (config.NODE_ENV === 'test') return false;
@@ -49,6 +61,9 @@ export type AppDeps = {
   reviewsFor?: (accessToken: string) => ReviewsRepo;
   // undefined: from config; null: AI unavailable.
   generate?: ReviewGenerator | null;
+  limits?: Limits;
+  // The built web app; by default loaded from WEB_DIST when the image has one built for this issuer.
+  web?: WebApp | null;
 };
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -63,6 +78,13 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     else req.log.info({ err }, 'request refused');
     return reply.code(status).send({ error: status >= 500 ? 'internal error' : err.message });
   });
+  const web = deps.web !== undefined ? deps.web : config.WEB_DIST && config.WEB_OKTA_ISSUER ? loadWebApp(config.WEB_DIST) : null;
+  if (web) registerWebApp(app, web);
+  app.setNotFoundHandler((req, reply) => {
+    if (web && !isApiPath(decodedPath(req.url)) && serveIndex(req, reply, web)) return;
+    return reply.code(404).send({ error: 'not found' });
+  });
+  registerSecurityHeaders(app, { oktaIssuer: config.OKTA_ISSUER, production: config.NODE_ENV === 'production' });
 
   registerAuth(app, {
     issuer: config.OKTA_ISSUER,
@@ -70,6 +92,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     clientId: config.OKTA_CLIENT_ID,
     jwks: deps.jwks ?? oktaJwks(config.OKTA_ISSUER),
   });
+
+  registerRateLimit(app);
+  const limits = deps.limits ?? defaultLimits;
 
   const userClient = userClientFactory(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY);
   const repoFor = deps.repoFor ?? ((token: string) => identityRepo(userClient(token)));
@@ -81,8 +106,8 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
   app.register(healthRoutes, { prefix: '/api', version: config.APP_VERSION, commit: config.GIT_SHA });
   app.register(identityRoutes, { prefix: '/api', repoFor });
   app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor });
-  app.register(reviewRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, reviewsFor, generate });
-  app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor() });
+  app.register(reviewRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, reviewsFor, generate, limits });
+  app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor(), limits });
 
   return app;
 }

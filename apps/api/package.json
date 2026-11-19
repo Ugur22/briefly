@@ -2,6 +2,9 @@
   "name": "@briefly/api",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.16"
+  },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "build": "tsup",
@@ -17,6 +20,7 @@
     "@anthropic-ai/sdk": "1.4.0",
     "@briefly/contracts": "workspace:*",
     "@fastify/multipart": "10.1.7",
+    "@fastify/rate-limit": "11.2.2",
     "@supabase/supabase-js": "^2.119.0",
     "fastify": "^5.12.8",
     "fastify-type-provider-zod": "^7.0.0",

@@ -18,4 +18,9 @@ describe('loadConfig', () => {
   it('rejects an issuer with a trailing slash, which would never match iss', () => {
     expect(() => loadConfig({ ...testEnv, OKTA_ISSUER: `${testEnv.OKTA_ISSUER}/` })).toThrow(/OKTA_ISSUER/);
   });
+
+  it('refuses to serve a web bundle built for another Okta issuer, which the CSP would block', () => {
+    expect(() => loadConfig({ ...testEnv, WEB_DIST: '/app/web', WEB_OKTA_ISSUER: 'https://other.test/oauth2/default' })).toThrow(/WEB_OKTA_ISSUER/);
+    expect(loadConfig({ ...testEnv, WEB_DIST: '/app/web', WEB_OKTA_ISSUER: testEnv.OKTA_ISSUER }).WEB_DIST).toBe('/app/web');
+  });
 });

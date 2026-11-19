@@ -20,6 +20,14 @@ const Env = z.object({
   OPENAI_MODEL: z.string().min(1).optional(),
   // 'fake' stores a canned review labelled as such: the offline fallback for a demo without a key or model.
   REVIEW_GENERATOR: z.enum(['claude', 'openai', 'fake']).default('claude'),
+  // The built web app to serve from this process (the image sets it); unset in dev, where Vite serves the web.
+  WEB_DIST: z.string().min(1).optional(),
+  // The Okta issuer baked into that bundle at build time. The CSP admits OKTA_ISSUER's origin, so the two must match.
+  // Empty: an image built without Okta settings (CI); its bundle can't sign in, so it is not served.
+  WEB_OKTA_ISSUER: z.string().optional(),
+}).refine((env) => !env.WEB_DIST || !env.WEB_OKTA_ISSUER || env.WEB_OKTA_ISSUER === env.OKTA_ISSUER, {
+  message: 'the web bundle was built for another Okta issuer (WEB_OKTA_ISSUER) than OKTA_ISSUER; sign-in would be blocked',
+  path: ['WEB_OKTA_ISSUER'],
 }).refine((env) => env.REVIEW_GENERATOR !== 'openai' || (env.OPENAI_API_KEY && env.OPENAI_MODEL), {
   message: 'REVIEW_GENERATOR=openai needs OPENAI_API_KEY and OPENAI_MODEL',
   path: ['REVIEW_GENERATOR'],

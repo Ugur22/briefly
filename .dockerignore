@@ -5,3 +5,5 @@
 .claude
 .env
 .env.*
+apps/web/e2e
+apps/web/test-results
