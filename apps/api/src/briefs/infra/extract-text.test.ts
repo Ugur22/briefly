@@ -66,7 +66,8 @@ describe('text extraction (real worker, real libraries)', () => {
     const patient = createTextExtractor({ ...defaultExtractOptions, timeoutMs: 60_000 });
 
     expect(await patient(bomb, PDF)).toEqual({ kind: 'unreadable' });
-  });
+    // Above the extractor's 60 s, so a slow CI runner ends in a result, not Vitest's 5 s default.
+  }, 90_000);
 
   it('can see a worker’s array-buffer memory, which the limit above depends on', async () => {
     const worker = new Worker('setInterval(() => {}, 1000)', { eval: true });
