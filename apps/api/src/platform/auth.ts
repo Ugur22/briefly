@@ -49,12 +49,20 @@ function bearerToken(req: FastifyRequest): string | null {
   return scheme?.toLowerCase() === 'bearer' && token ? token : null;
 }
 
-// Deny by default: every request needs a valid token unless its route opts out with `config: { public: true }`.
-// Unknown routes therefore answer 401 to anonymous callers, which reveals nothing about what exists.
+export const isApiPath = (path: string) => path === '/api' || path.startsWith('/api/') || path.startsWith('/api?');
+
+// Deny by default: every /api request needs a valid token unless its route opts out with `config: { public: true }`.
+// Unknown API routes therefore answer 401 to anonymous callers, which reveals nothing about what exists.
+// Everything outside /api is the web app's static build, which is public by nature.
 export function registerAuth(app: FastifyInstance, opts: AuthOptions) {
   app.decorateRequest('auth', null);
+  // The check above skips everything outside /api, so a protected route must not be registered outside it.
+  app.addHook('onRoute', (route) => {
+    if (!isApiPath(route.url) && !route.config?.public) throw new Error(`${route.url} is outside /api: mark it public or move it`);
+  });
   app.addHook('onRequest', async (req, reply) => {
-    if (req.routeOptions.config?.public) return;
+    // The matched route's pattern, not the raw URL: the router decodes %61pi to api, a string check would not.
+    if (req.routeOptions.config?.public || !isApiPath(req.routeOptions.url ?? req.url)) return;
 
     const token = bearerToken(req);
     if (!token) {

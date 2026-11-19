@@ -1,3 +1,5 @@
+// First: every later module may parse with Zod as it loads (lib/auth.ts does).
+import './lib/zod-config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
