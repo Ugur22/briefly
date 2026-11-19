@@ -67,6 +67,34 @@ function multipartBody(file?: { name: string; bytes: Buffer }, title?: string) {
   return { payload: Buffer.concat(chunks), contentType: `multipart/form-data; boundary=${boundary}` };
 }
 
+describe('upload limit', () => {
+  const minute = 60_000;
+  const limits = { uploadPerUser: { max: 2, timeWindow: minute }, generatePerUser: { max: 100, timeWindow: minute }, generatePerWorkspace: { max: 100, timeWindow: minute } };
+  const app = buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs, sourcesFor: () => sources, extract, limits });
+  afterAll(() => app.close());
+
+  const upload = async (uid: string) => {
+    const { payload, contentType } = multipartBody({ name: 'x.pdf', bytes: pdfBytes });
+    return app.inject({ method: 'POST', url: `/api/workspaces/${wsA}/briefs/upload`, payload, headers: { authorization: `Bearer ${await signToken({ uid })}`, 'content-type': contentType } });
+  };
+
+  it('answers 429 rate_limited with Retry-After past the per-user limit, before extracting; others are unaffected', async () => {
+    role = 'editor';
+    extraction = { kind: 'ok', text: 'Spring launch', pages: 1, ms: 5 };
+    expect((await upload('00uALICE')).statusCode).toBe(201);
+    expect((await upload('00uALICE')).statusCode).toBe(201);
+    extract.mockClear();
+
+    const res = await upload('00uALICE');
+
+    expect(res.statusCode).toBe(429);
+    expect(res.json()).toEqual({ error: 'rate_limited' });
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    expect(extract).not.toHaveBeenCalled();
+    expect((await upload('00uBOB')).statusCode).toBe(201);
+  });
+});
+
 describe('upload and download of brief originals', () => {
   const app = buildApp(loadConfig(testEnv), { jwks: testJwks, repoFor: identity, briefsFor: () => briefs, sourcesFor: () => sources, extract });
   afterAll(() => app.close());

@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   no_text: 'No text found in that file. A scanned PDF is an image; paste the text instead.',
   too_long: 'That file has more than 50,000 characters of text. Split it into smaller briefs.',
   busy: 'Briefly is reading other files right now. Try again in a moment.',
+  rate_limited: "You've reached the upload limit for now. Try again in a few minutes.",
   forbidden: 'Your role in this workspace cannot create briefs.',
 };
 

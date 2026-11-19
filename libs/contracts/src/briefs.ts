@@ -85,8 +85,9 @@ export const BriefParams = z.object({
 });
 
 // Why an upload was refused, so the web can say something specific. Status codes: 413 too_large,
-// 415 unsupported_type, 422 the rest, 503 busy (extraction capacity full; try again).
-export const UploadError = z.enum(['missing_file', 'too_large', 'unsupported_type', 'unreadable', 'no_text', 'too_long', 'busy']);
+// 415 unsupported_type, 422 the rest, 429 rate_limited (this user's upload limit), 503 busy (extraction capacity
+// full; try again).
+export const UploadError = z.enum(['missing_file', 'too_large', 'unsupported_type', 'unreadable', 'no_text', 'too_long', 'busy', 'rate_limited']);
 export type UploadError = z.infer<typeof UploadError>;
 export const UploadErrorBody = z.object({ error: UploadError });
 

@@ -1,4 +1,4 @@
-import { REVIEW_AREAS, type AreaStatus, type BriefReview, type Review, type ReviewArea } from '@briefly/contracts';
+import { RATE_LIMITED, REVIEW_AREAS, type AreaStatus, type BriefReview, type Review, type ReviewArea } from '@briefly/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, LoaderCircle, Pencil, RefreshCw } from 'lucide-react';
 import { useLayoutEffect, useState, type ReactNode } from 'react';
@@ -32,6 +32,7 @@ const generateError = (err: unknown) => {
   if (err instanceof ApiError && err.code === 'busy') return 'A review of this brief is already being generated.';
   if (err instanceof ApiError && err.code === 'ai_unavailable') return 'AI review is not available right now.';
   if (err instanceof ApiError && err.code === 'locked') return 'This brief can no longer be reviewed.';
+  if (err instanceof ApiError && err.code === RATE_LIMITED) return "You've reached the limit for AI reviews for now. Try again in a few minutes.";
   return 'Could not generate a review. Try again.';
 };
 

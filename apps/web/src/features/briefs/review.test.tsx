@@ -114,6 +114,15 @@ describe('ReviewPanel', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/not available/);
   });
 
+  it('explains that the AI review limit is reached', async () => {
+    serve((method) => (method === 'POST' ? Response.json({ error: 'rate_limited' }, { status: 429 }) : Response.json({ review: null, permissions: allowed })));
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate AI review' }));
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/limit for AI reviews/);
+  });
+
   it('saves an edit against the brief version it was made on', async () => {
     const calls = serve((method, body) =>
       Response.json({ review: method === 'PUT' ? stored({ review: (body as { review: unknown }).review, editedAt: '2026-11-18T10:05:00.000Z' }) : stored(), permissions: allowed }),

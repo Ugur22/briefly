@@ -16,6 +16,7 @@ import { openAIReviewGenerator } from './briefs/infra/openai-review-generator';
 import { reviewsRepo } from './briefs/infra/reviews-repo';
 import type { FastifyBaseLogger } from 'fastify';
 import { oktaJwks, registerAuth } from './platform/auth';
+import { defaultLimits, registerRateLimit, type Limits } from './platform/rate-limit';
 import type { Config } from './platform/config';
 import { userClientFactory } from './platform/supabase';
 
@@ -49,6 +50,7 @@ export type AppDeps = {
   reviewsFor?: (accessToken: string) => ReviewsRepo;
   // undefined: from config; null: AI unavailable.
   generate?: ReviewGenerator | null;
+  limits?: Limits;
 };
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -71,6 +73,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     jwks: deps.jwks ?? oktaJwks(config.OKTA_ISSUER),
   });
 
+  registerRateLimit(app);
+  const limits = deps.limits ?? defaultLimits;
+
   const userClient = userClientFactory(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY);
   const repoFor = deps.repoFor ?? ((token: string) => identityRepo(userClient(token)));
   const briefsFor = deps.briefsFor ?? ((token: string) => briefsRepo(userClient(token)));
@@ -81,8 +86,8 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
   app.register(healthRoutes, { prefix: '/api', version: config.APP_VERSION, commit: config.GIT_SHA });
   app.register(identityRoutes, { prefix: '/api', repoFor });
   app.register(briefsRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor });
-  app.register(reviewRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, reviewsFor, generate });
-  app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor() });
+  app.register(reviewRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, reviewsFor, generate, limits });
+  app.register(sourceRoutes, { prefix: '/api', identityFor: repoFor, briefsFor, sourcesFor, extract: deps.extract ?? createTextExtractor(), limits });
 
   return app;
 }

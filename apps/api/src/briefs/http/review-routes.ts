@@ -2,6 +2,7 @@ import { ApiErrorBody, BriefParams, BriefReviewResponse, ReviewEdit, type Brief,
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
+import { byUser, byWorkspace, limitedBy, memberOf, requireWorkspace, type Limits } from '../../platform/rate-limit';
 import { generateReview, type ReviewGenerator, type ReviewsRepo } from '../application/generate-review';
 import { briefPermissions } from '../domain/permissions';
 import { toBriefReview } from '../domain/review';
@@ -13,11 +14,12 @@ export type ReviewRoutesOptions = {
   briefsFor: (accessToken: string) => BriefsRepo;
   reviewsFor: (accessToken: string) => ReviewsRepo;
   generate: ReviewGenerator | null;
+  limits: Limits;
 };
 
 const errors = { 403: ApiErrorBody, 404: ApiErrorBody, 409: ApiErrorBody, 503: ApiErrorBody };
 
-export const reviewRoutes: FastifyPluginAsyncZod<ReviewRoutesOptions> = async (app, { identityFor, briefsFor, reviewsFor, generate }) => {
+export const reviewRoutes: FastifyPluginAsyncZod<ReviewRoutesOptions> = async (app, { identityFor, briefsFor, reviewsFor, generate, limits }) => {
   const permissions = (role: WorkspaceRole, brief: Brief) => {
     const write = briefPermissions(role).edit && isEditableStatus(brief.status);
     return { generate: write && generate !== null, edit: write };
@@ -41,10 +43,15 @@ export const reviewRoutes: FastifyPluginAsyncZod<ReviewRoutesOptions> = async (a
 
   // Synchronous: the request waits for the model (≤ 50 s). The web disables the button meanwhile, and the
   // database claim makes a second click a 409 rather than a second model call.
-  app.post(path, { schema: { params: BriefParams, response: { 200: BriefReviewResponse, ...errors } } }, async (req, reply) => {
+  // Each call is a paid model call: capped per user, and per workspace so several users can't add up past it.
+  const generateLimit = limitedBy(app, 'generate', [
+    { limit: limits.generatePerUser, key: byUser },
+    { limit: limits.generatePerWorkspace, key: byWorkspace },
+  ]);
+  const postSchema = { params: BriefParams, response: { 200: BriefReviewResponse, ...errors, 429: ApiErrorBody } };
+  app.post(path, { schema: postSchema, preHandler: [memberOf(identityFor, (role) => briefPermissions(role).edit), generateLimit] }, async (req, reply) => {
     const token = requireAuth(req).token;
-    const ws = await identityFor(token).findWorkspace(req.params.wsId);
-    if (!ws) return reply.code(404).send({ error: 'not found' });
+    const ws = requireWorkspace(req);
 
     const result = await generateReview(
       { findBrief: (w, b) => briefsFor(token).get(w, b), reviews: reviewsFor(token), generate },

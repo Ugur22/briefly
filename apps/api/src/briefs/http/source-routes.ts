@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { IdentityRepo } from '../../identity/infra/identity-repo';
 import { requireAuth } from '../../platform/auth';
+import { byUser, limitedBy, memberOf, requireWorkspace, type Limits } from '../../platform/rate-limit';
 import { briefPermissions } from '../domain/permissions';
 import { briefActions } from '../domain/workflow';
 import { sniffSourceFile, sourcePath, titleFromFileName } from '../domain/source-file';
@@ -18,6 +19,7 @@ export type SourceRoutesOptions = {
   briefsFor: (accessToken: string) => BriefsRepo;
   sourcesFor: (accessToken: string) => SourceStorage;
   extract: TextExtractor;
+  limits: Limits;
 };
 
 const STATUS: Record<UploadError, number> = {
@@ -27,6 +29,7 @@ const STATUS: Record<UploadError, number> = {
   unreadable: 422,
   no_text: 422,
   too_long: 422,
+  rate_limited: 429,
   busy: 503,
 };
 const refuse = (reply: FastifyReply, error: UploadError) => reply.code(STATUS[error]).send({ error });
@@ -72,7 +75,7 @@ async function readUpload(req: FastifyRequest): Promise<{ bytes: Uint8Array; fil
   return { ...file, ...(title?.trim() ? { title } : {}) };
 }
 
-export const sourceRoutes: FastifyPluginAsyncZod<SourceRoutesOptions> = async (app, { identityFor, briefsFor, sourcesFor, extract }) => {
+export const sourceRoutes: FastifyPluginAsyncZod<SourceRoutesOptions> = async (app, { identityFor, briefsFor, sourcesFor, extract, limits }) => {
   await app.register(multipart, {
     limits: { fileSize: BRIEF_FILE_MAX_BYTES, files: 1, fields: 1, parts: 2, fieldSize: 4096 },
   });
@@ -83,15 +86,14 @@ export const sourceRoutes: FastifyPluginAsyncZod<SourceRoutesOptions> = async (a
       schema: {
         params: WorkspaceParams,
         // Error bodies are plain { error } here: a 400 can also come from validating the URL, not just the upload.
-        response: { 201: BriefResponse, 400: ApiErrorBody, 403: ApiErrorBody, 404: ApiErrorBody, 413: ApiErrorBody, 415: ApiErrorBody, 422: ApiErrorBody, 503: ApiErrorBody },
+        response: { 201: BriefResponse, 400: ApiErrorBody, 403: ApiErrorBody, 404: ApiErrorBody, 413: ApiErrorBody, 415: ApiErrorBody, 422: ApiErrorBody, 429: ApiErrorBody, 503: ApiErrorBody },
       },
+      // Before the body is read: a refused upload never costs an extraction.
+      preHandler: [memberOf(identityFor, (role) => briefPermissions(role).create), limitedBy(app, 'upload', [{ limit: limits.uploadPerUser, key: byUser }])],
     },
     async (req, reply) => {
       const token = requireAuth(req).token;
-      const ws = await identityFor(token).findWorkspace(req.params.wsId);
-      if (!ws) return reply.code(404).send({ error: 'not found' });
-      const can = briefPermissions(ws.role);
-      if (!can.create) return reply.code(403).send({ error: 'forbidden' });
+      const ws = requireWorkspace(req);
 
       const upload = await readUpload(req);
       if (typeof upload === 'string') return refuse(reply, upload);
