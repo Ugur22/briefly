@@ -2,6 +2,9 @@
   "name": "@briefly/api",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.16"
+  },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "build": "tsup",

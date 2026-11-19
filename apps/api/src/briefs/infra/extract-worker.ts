@@ -1,6 +1,6 @@
-// Runs in a worker thread with a memory limit and is terminated on timeout by extract-text.ts, so a hostile
-// PDF or zip bomb can only take this thread down, never the API. Only erasable TypeScript here: Node runs this
-// file directly in dev and tests, and tsup bundles it as its own entry for production.
+// Runs in a worker thread that extract-text.ts terminates on timeout or when its heap or array buffers grow past
+// their limits, so a hostile PDF or zip bomb can only take this thread down, never the API. Only erasable
+// TypeScript here: Node runs this file directly in dev and tests, and tsup bundles it as its own entry for production.
 import mammoth from 'mammoth';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { parentPort, workerData } from 'node:worker_threads';

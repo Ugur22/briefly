@@ -12,6 +12,10 @@ export type ExtractOptions = {
   maxConcurrent: number;
   maxPages: number;
   memoryMb: number;
+  // The heap limit above doesn't cover array buffers, and pdf.js keeps decoded streams in them: a 600 KB PDF
+  // reached 1.3 GB of process memory without this. Checked every memoryCheckMs; the overshoot was ~35 MB.
+  maxExternalMb: number;
+  memoryCheckMs: number;
   maxInflatedBytes: number;
   // Raw text may shrink a little when normalised, so the worker's cut-off leaves room above the brief limit.
   maxTextChars: number;
@@ -26,6 +30,8 @@ export const defaultExtractOptions: ExtractOptions = {
   maxConcurrent: 2,
   maxPages: 100,
   memoryMb: 256,
+  maxExternalMb: 128,
+  memoryCheckMs: 25,
   maxInflatedBytes: 50 * 1024 * 1024,
   maxTextChars: BRIEF_BODY_MAX * 4,
   workerUrl: defaultWorkerUrl,
@@ -33,8 +39,8 @@ export const defaultExtractOptions: ExtractOptions = {
 
 export type TextExtractor = (bytes: Uint8Array, mime: BriefSourceMime) => Promise<Extraction>;
 
-// Each file gets a fresh worker that is killed when it overruns its time or memory; a slot limit keeps a burst
-// of uploads from exhausting the machine (callers get 'busy' and the user can retry).
+// Each file gets a fresh worker that is killed when it overruns its time, heap or array-buffer memory; a slot
+// limit keeps a burst of uploads from exhausting the machine (callers get 'busy' and the user can retry).
 export function createTextExtractor(opts: ExtractOptions = defaultExtractOptions): TextExtractor {
   let running = 0;
 
@@ -48,9 +54,21 @@ export function createTextExtractor(opts: ExtractOptions = defaultExtractOptions
           workerData: { bytes, mime, maxPages: opts.maxPages, maxInflatedBytes: opts.maxInflatedBytes, maxTextChars: opts.maxTextChars },
           resourceLimits: { maxOldGenerationSizeMb: opts.memoryMb, maxYoungGenerationSizeMb: 32 },
         });
-        const timer = setTimeout(() => void worker.terminate().then(() => resolve(null)), opts.timeoutMs);
+        const kill = () => {
+          clearTimeout(timer);
+          clearInterval(watch);
+          void worker.terminate().then(() => resolve(null));
+        };
+        const timer = setTimeout(kill, opts.timeoutMs);
+        const watch = setInterval(() => {
+          // Rejects once the worker has exited, which settle handles.
+          worker.getHeapStatistics().then((s) => {
+            if (s.external_memory > opts.maxExternalMb * 1024 * 1024) kill();
+          }, () => {});
+        }, opts.memoryCheckMs);
         const settle = (value: WorkerReply | null) => {
           clearTimeout(timer);
+          clearInterval(watch);
           resolve(value);
           void worker.terminate();
         };
